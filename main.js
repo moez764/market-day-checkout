@@ -1,6 +1,6 @@
 // ---------- SUPABASE SETUP ----------
-const SUPABASE_URL = 'https://fjhgnspepthkintjsyyg.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable__2Yj9y_7TmmaYfRkAOJGCg_8AT55CZ3'; // from Supabase settings → API
+const SUPABASE_URL = 'https://YOUR-PROJECT-ID.supabase.co';
+const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY'; // from Supabase settings → API
 
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -36,10 +36,12 @@ if (isCustomerPage) {
     orderModalOverlay.classList.add('hidden');
   }
 
-  orderModalClose.addEventListener('click', hideOrderModal);
-  orderModalOverlay.addEventListener('click', e => {
-    if (e.target === orderModalOverlay) hideOrderModal();
-  });
+  if (orderModalClose && orderModalOverlay) {
+    orderModalClose.addEventListener('click', hideOrderModal);
+    orderModalOverlay.addEventListener('click', e => {
+      if (e.target === orderModalOverlay) hideOrderModal();
+    });
+  }
 
   async function loadProducts() {
     const { data, error } = await client
@@ -264,7 +266,7 @@ if (isCustomerPage) {
 
 // ---------- ADMIN PAGE ----------
 if (isAdminPage) {
-  const ADMIN_PASSWORD = 'admin12345';
+  const ADMIN_PASSWORD = 'change_me_before_market_day';
 
   const lockedDiv = document.getElementById('locked');
   const contentDiv = document.getElementById('admin-content');
