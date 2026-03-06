@@ -5,8 +5,11 @@ const SUPABASE_ANON_KEY = 'sb_publishable__2Yj9y_7TmmaYfRkAOJGCg_8AT55CZ3'; // f
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const path = document.location.pathname;
-const isCustomerPage = path.endsWith('index.html') || path.endsWith('/');
+
+// Treat any URL that is NOT admin.html as the customer page
 const isAdminPage = path.endsWith('admin.html');
+const isCustomerPage = !isAdminPage;
+
 
 
 function formatPrice(fils) {
