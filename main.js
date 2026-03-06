@@ -23,17 +23,85 @@ if (isCustomerPage) {
   let products = [];
   let cart = {}; // { productId: quantity }
 
-  async function loadProducts() {
-    const { data, error } = await client
-      .from('products')
-      .select('*')
-      .eq('is_available', true);
+async function loadProductsAdmin() {
+  const { data, error } = await client
+    .from('products')
+    .select('*')
+    .order('id', { ascending: true });
 
-    if (error) {
-      productListEl.textContent = 'Error loading products.';
-      console.error(error);
-      return;
-    }
+  if (error) {
+    adminProductListEl.textContent = 'Error loading products.';
+    console.error(error);
+    return;
+  }
+
+  adminProductListEl.innerHTML = '';
+  data.forEach(p => {
+    const row = document.createElement('div');
+    row.className = 'product-row'; // matches the nicer admin HTML styles if you used them
+
+    const meta = document.createElement('div');
+    meta.className = 'product-meta';
+
+    const nameEl = document.createElement('div');
+    nameEl.className = 'product-name';
+    nameEl.textContent = p.name;
+
+    const extraEl = document.createElement('div');
+    extraEl.className = 'product-extra';
+    extraEl.textContent = `#${p.id} · ${p.is_available ? 'Visible' : 'Hidden'}`;
+
+    meta.appendChild(nameEl);
+    meta.appendChild(extraEl);
+
+    const right = document.createElement('div');
+    right.style.display = 'flex';
+    right.style.alignItems = 'center';
+    right.style.gap = '6px';
+
+    const priceEl = document.createElement('div');
+    priceEl.className = 'product-price';
+    priceEl.textContent = `${formatPrice(p.price)} AED`;
+
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.textContent = 'Remove';
+    delBtn.className = 'btn btn-outline';
+    delBtn.style.fontSize = '11px';
+
+    delBtn.onclick = async () => {
+      const confirmDelete = confirm(`Remove "${p.name}" from the menu?`);
+      if (!confirmDelete) return;
+
+      const { error: deleteError } = await client
+        .from('products')
+        .delete()
+        .eq('id', p.id);
+
+      if (deleteError) {
+        alert('Error removing product.');
+        console.error(deleteError);
+        return;
+      }
+
+      // Reload list after delete
+      await loadProductsAdmin();
+    };
+
+    right.appendChild(priceEl);
+    right.appendChild(delBtn);
+
+    row.appendChild(meta);
+    row.appendChild(right);
+
+    adminProductListEl.appendChild(row);
+  });
+
+  if (data.length === 0) {
+    adminProductListEl.textContent = 'No products yet. Add your first item above.';
+  }
+}
+
 
     products = data;
     renderProducts();
