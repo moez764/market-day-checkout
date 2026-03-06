@@ -264,7 +264,7 @@ if (isCustomerPage) {
 
 // ---------- ADMIN PAGE ----------
 if (isAdminPage) {
-  const ADMIN_PASSWORD = 'change_me_before_market_day';
+  const ADMIN_PASSWORD = 'admin12345';
 
   const lockedDiv = document.getElementById('locked');
   const contentDiv = document.getElementById('admin-content');
