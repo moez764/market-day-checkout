@@ -5,9 +5,9 @@ const SUPABASE_ANON_KEY = 'sb_publishable__2Yj9y_7TmmaYfRkAOJGCg_8AT55CZ3'; // f
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const path = document.location.pathname;
-const isCustomerPage =
-  path.endsWith('index.html') || path === '/' || path === '';
+const isCustomerPage = path.endsWith('index.html') || path.endsWith('/');
 const isAdminPage = path.endsWith('admin.html');
+
 
 function formatPrice(fils) {
   return (fils / 100).toFixed(2);
