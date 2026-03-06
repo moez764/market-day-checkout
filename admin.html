@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Admin - Market Day</title>
+</head>
+<body>
+  <h1>Admin Panel</h1>
+
+  <div id="locked">
+    <p>Staff only.</p>
+    <input id="admin-pass" type="password" placeholder="Admin password">
+    <button id="unlock-btn">Unlock</button>
+  </div>
+
+  <div id="admin-content" style="display:none;">
+    <h2>Add product</h2>
+    <input id="product-name" placeholder="Name">
+    <input id="product-price" type="number" placeholder="Price in AED">
+    <button id="add-product-btn">Add product</button>
+
+    <h2>Current products</h2>
+    <div id="admin-product-list"></div>
+
+    <h2>Orders</h2>
+    <div id="orders-list"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="main.js" defer></script>
+</body>
+</html>
