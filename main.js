@@ -20,8 +20,26 @@ if (isCustomerPage) {
   const totalEl = document.getElementById('total');
   const placeOrderBtn = document.getElementById('place-order-btn');
 
+  const orderModalOverlay = document.getElementById('order-modal-overlay');
+  const orderModalNumber = document.getElementById('order-modal-number');
+  const orderModalClose = document.getElementById('order-modal-close');
+
   let products = [];
   let cart = {}; // { productId: quantity }
+
+  function showOrderModal(orderId) {
+    orderModalNumber.textContent = `#${orderId}`;
+    orderModalOverlay.classList.remove('hidden');
+  }
+
+  function hideOrderModal() {
+    orderModalOverlay.classList.add('hidden');
+  }
+
+  orderModalClose.addEventListener('click', hideOrderModal);
+  orderModalOverlay.addEventListener('click', e => {
+    if (e.target === orderModalOverlay) hideOrderModal();
+  });
 
   async function loadProducts() {
     const { data, error } = await client
@@ -159,12 +177,33 @@ if (isCustomerPage) {
       left.appendChild(nameEl);
       left.appendChild(metaEl);
 
+      const right = document.createElement('div');
+      right.style.display = 'flex';
+      right.style.alignItems = 'center';
+      right.style.gap = '8px';
+
       const priceEl = document.createElement('div');
       priceEl.className = 'cart-item-price';
       priceEl.textContent = `${formatPrice(lineTotal)} AED`;
 
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'cart-remove-btn';
+      removeBtn.textContent = '−';
+      removeBtn.onclick = () => {
+        if (!cart[pid]) return;
+        cart[pid]--;
+        if (cart[pid] <= 0) {
+          delete cart[pid];
+        }
+        renderCart();
+      };
+
+      right.appendChild(priceEl);
+      right.appendChild(removeBtn);
+
       row.appendChild(left);
-      row.appendChild(priceEl);
+      row.appendChild(right);
 
       cartEl.appendChild(row);
     });
@@ -214,7 +253,7 @@ if (isCustomerPage) {
       return;
     }
 
-    alert(`Order placed! Order ID: ${orderId}`);
+    showOrderModal(orderId);
     cart = {};
     renderCart();
   }
@@ -243,13 +282,12 @@ if (isAdminPage) {
   });
 
   function initAdmin() {
-  const nameInput = document.getElementById('product-name');
-  const priceInput = document.getElementById('product-price');
-  const addProductBtn = document.getElementById('add-product-btn');
-  const adminProductListEl = document.getElementById('admin-product-list');
-  const ordersListEl = document.getElementById('orders-list');
-  const refreshOrdersBtn = document.getElementById('refresh-orders-btn');
-
+    const nameInput = document.getElementById('product-name');
+    const priceInput = document.getElementById('product-price');
+    const addProductBtn = document.getElementById('add-product-btn');
+    const adminProductListEl = document.getElementById('admin-product-list');
+    const ordersListEl = document.getElementById('orders-list');
+    const refreshOrdersBtn = document.getElementById('refresh-orders-btn');
 
     async function loadProductsAdmin() {
       const { data, error } = await client
@@ -412,10 +450,10 @@ if (isAdminPage) {
       await loadProductsAdmin();
     }
 
-addProductBtn.addEventListener('click', addProduct);
-refreshOrdersBtn.addEventListener('click', loadOrders);
+    addProductBtn.addEventListener('click', addProduct);
+    refreshOrdersBtn.addEventListener('click', loadOrders);
 
-loadProductsAdmin();
-loadOrders();
+    loadProductsAdmin();
+    loadOrders();
   }
 }
