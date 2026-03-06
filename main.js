@@ -243,11 +243,13 @@ if (isAdminPage) {
   });
 
   function initAdmin() {
-    const nameInput = document.getElementById('product-name');
-    const priceInput = document.getElementById('product-price');
-    const addProductBtn = document.getElementById('add-product-btn');
-    const adminProductListEl = document.getElementById('admin-product-list');
-    const ordersListEl = document.getElementById('orders-list');
+  const nameInput = document.getElementById('product-name');
+  const priceInput = document.getElementById('product-price');
+  const addProductBtn = document.getElementById('add-product-btn');
+  const adminProductListEl = document.getElementById('admin-product-list');
+  const ordersListEl = document.getElementById('orders-list');
+  const refreshOrdersBtn = document.getElementById('refresh-orders-btn');
+
 
     async function loadProductsAdmin() {
       const { data, error } = await client
@@ -410,9 +412,10 @@ if (isAdminPage) {
       await loadProductsAdmin();
     }
 
-    addProductBtn.addEventListener('click', addProduct);
+addProductBtn.addEventListener('click', addProduct);
+refreshOrdersBtn.addEventListener('click', loadOrders);
 
-    loadProductsAdmin();
-    loadOrders();
+loadProductsAdmin();
+loadOrders();
   }
 }
