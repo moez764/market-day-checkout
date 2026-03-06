@@ -27,7 +27,7 @@ if (isCustomerPage) {
     const { data, error } = await client
       .from('products')
       .select('*')
-      .order('id', { ascending: true }); // no filtering, just order by id
+      .order('id', { ascending: true });
 
     if (error) {
       productListEl.textContent = 'Error loading products.';
@@ -58,12 +58,10 @@ if (isCustomerPage) {
       const card = document.createElement('div');
       card.className = 'product-card';
 
-      // Top tag
       const tag = document.createElement('div');
       tag.className = 'product-tag';
       tag.textContent = `#${p.id}`;
 
-      // Image
       const imgWrap = document.createElement('div');
       imgWrap.className = 'product-image-wrap';
 
@@ -71,9 +69,9 @@ if (isCustomerPage) {
       img.className = 'product-image';
       if (p.image_url) {
         img.src = p.image_url;
+        img.alt = p.name || 'Product image';
       } else {
-        // fallback simple emoji image using text if no URL
-        img.alt = 'Product image';
+        img.style.display = 'none';
       }
 
       const emojiOverlay = document.createElement('div');
@@ -83,18 +81,15 @@ if (isCustomerPage) {
       imgWrap.appendChild(img);
       imgWrap.appendChild(emojiOverlay);
 
-      // Name
       const nameEl = document.createElement('div');
       nameEl.className = 'product-name';
       nameEl.textContent = p.name || 'Untitled item';
 
-      // Description
       const descEl = document.createElement('div');
       descEl.className = 'product-desc';
       descEl.textContent =
         p.description || 'Sweet, chilled and perfect for market day.';
 
-      // Bottom row
       const bottom = document.createElement('div');
       bottom.className = 'product-bottom';
 
