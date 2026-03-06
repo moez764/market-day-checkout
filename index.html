@@ -328,6 +328,25 @@
       font-weight: 700;
     }
 
+    .cart-remove-btn {
+      width: 26px;
+      height: 26px;
+      border-radius: 999px;
+      border: none;
+      background: rgba(255, 255, 255, 0.12);
+      color: #fbe3d4;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .cart-remove-btn:active {
+      background: rgba(255, 255, 255, 0.25);
+    }
+
     .cart-footer {
       border-top: 1px dashed rgba(255, 255, 255, 0.18);
       padding-top: 10px;
@@ -383,6 +402,65 @@
       font-size: 11px;
       color: #dcbcad;
       text-align: center;
+    }
+
+    /* Order modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at top, rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.85));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+    }
+
+    .modal-overlay.hidden {
+      display: none;
+    }
+
+    .order-modal {
+      background: linear-gradient(135deg, #fff7f2, #ffe0d3);
+      border-radius: 24px;
+      padding: 22px 26px 20px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+      text-align: center;
+      max-width: 320px;
+      width: 90%;
+    }
+
+    .order-modal-title {
+      font-size: 20px;
+      font-weight: 800;
+      color: #2b1b16;
+      margin-bottom: 6px;
+    }
+
+    .order-modal-subtitle {
+      font-size: 13px;
+      color: #7a5a4a;
+      margin-bottom: 10px;
+    }
+
+    .order-modal-number {
+      font-size: 40px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      color: #ff4f5a;
+      text-shadow: 0 6px 18px rgba(255, 79, 90, 0.55);
+      margin-bottom: 14px;
+    }
+
+    .order-modal-button {
+      border: none;
+      border-radius: 999px;
+      padding: 10px 18px;
+      background: linear-gradient(135deg, #ff9c5f, #ff4f5a);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 10px 26px rgba(255, 99, 71, 0.55);
     }
 
     /* Responsive: single column on small screens */
@@ -463,6 +541,18 @@
         </div>
       </div>
     </aside>
+  </div>
+
+  <!-- Order modal -->
+  <div id="order-modal-overlay" class="modal-overlay hidden">
+    <div class="order-modal">
+      <div class="order-modal-title">Order placed!</div>
+      <div class="order-modal-subtitle">Show this number at the counter:</div>
+      <div class="order-modal-number" id="order-modal-number">#123</div>
+      <button type="button" class="order-modal-button" id="order-modal-close">
+        Got it
+      </button>
+    </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
