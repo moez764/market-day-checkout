@@ -23,100 +23,101 @@ if (isCustomerPage) {
   let products = [];
   let cart = {}; // { productId: quantity }
 
-async function loadProductsAdmin() {
-  const { data, error } = await client
-    .from('products')
-    .select('*')
-    .order('id', { ascending: true });
+  async function loadProducts() {
+    const { data, error } = await client
+      .from('products')
+      .select('*')
+      .order('id', { ascending: true }); // no filtering, just order by id
 
-  if (error) {
-    adminProductListEl.textContent = 'Error loading products.';
-    console.error(error);
-    return;
-  }
-
-  adminProductListEl.innerHTML = '';
-  data.forEach(p => {
-    const row = document.createElement('div');
-    row.className = 'product-row'; // matches the nicer admin HTML styles if you used them
-
-    const meta = document.createElement('div');
-    meta.className = 'product-meta';
-
-    const nameEl = document.createElement('div');
-    nameEl.className = 'product-name';
-    nameEl.textContent = p.name;
-
-    const extraEl = document.createElement('div');
-    extraEl.className = 'product-extra';
-    extraEl.textContent = `#${p.id} · ${p.is_available ? 'Visible' : 'Hidden'}`;
-
-    meta.appendChild(nameEl);
-    meta.appendChild(extraEl);
-
-    const right = document.createElement('div');
-    right.style.display = 'flex';
-    right.style.alignItems = 'center';
-    right.style.gap = '6px';
-
-    const priceEl = document.createElement('div');
-    priceEl.className = 'product-price';
-    priceEl.textContent = `${formatPrice(p.price)} AED`;
-
-    const delBtn = document.createElement('button');
-    delBtn.type = 'button';
-    delBtn.textContent = 'Remove';
-    delBtn.className = 'btn btn-outline';
-    delBtn.style.fontSize = '11px';
-
-    delBtn.onclick = async () => {
-      const confirmDelete = confirm(`Remove "${p.name}" from the menu?`);
-      if (!confirmDelete) return;
-
-      const { error: deleteError } = await client
-        .from('products')
-        .delete()
-        .eq('id', p.id);
-
-      if (deleteError) {
-        alert('Error removing product.');
-        console.error(deleteError);
-        return;
-      }
-
-      // Reload list after delete
-      await loadProductsAdmin();
-    };
-
-    right.appendChild(priceEl);
-    right.appendChild(delBtn);
-
-    row.appendChild(meta);
-    row.appendChild(right);
-
-    adminProductListEl.appendChild(row);
-  });
-
-  if (data.length === 0) {
-    adminProductListEl.textContent = 'No products yet. Add your first item above.';
-  }
-}
-
+    if (error) {
+      productListEl.textContent = 'Error loading products.';
+      console.error(error);
+      return;
+    }
 
     products = data;
     renderProducts();
   }
 
   function renderProducts() {
+    const emojiFallback = '🍰';
+
     productListEl.innerHTML = '';
+
+    if (!products || products.length === 0) {
+      const empty = document.createElement('div');
+      empty.style.gridColumn = '1 / -1';
+      empty.style.textAlign = 'center';
+      empty.style.color = '#8a6a5c';
+      empty.textContent = 'No products yet. Add some items in the admin panel.';
+      productListEl.appendChild(empty);
+      return;
+    }
+
     products.forEach(p => {
-      const div = document.createElement('div');
-      div.textContent = `${p.name} - ${formatPrice(p.price)} AED`;
+      const card = document.createElement('div');
+      card.className = 'product-card';
+
+      // Top tag
+      const tag = document.createElement('div');
+      tag.className = 'product-tag';
+      tag.textContent = `#${p.id}`;
+
+      // Image
+      const imgWrap = document.createElement('div');
+      imgWrap.className = 'product-image-wrap';
+
+      const img = document.createElement('img');
+      img.className = 'product-image';
+      if (p.image_url) {
+        img.src = p.image_url;
+      } else {
+        // fallback simple emoji image using text if no URL
+        img.alt = 'Product image';
+      }
+
+      const emojiOverlay = document.createElement('div');
+      emojiOverlay.className = 'product-emoji-overlay';
+      emojiOverlay.textContent = emojiFallback;
+
+      imgWrap.appendChild(img);
+      imgWrap.appendChild(emojiOverlay);
+
+      // Name
+      const nameEl = document.createElement('div');
+      nameEl.className = 'product-name';
+      nameEl.textContent = p.name || 'Untitled item';
+
+      // Description
+      const descEl = document.createElement('div');
+      descEl.className = 'product-desc';
+      descEl.textContent =
+        p.description || 'Sweet, chilled and perfect for market day.';
+
+      // Bottom row
+      const bottom = document.createElement('div');
+      bottom.className = 'product-bottom';
+
+      const priceEl = document.createElement('div');
+      priceEl.className = 'product-price';
+      priceEl.innerHTML = `${formatPrice(p.price || 0)} <span>AED</span>`;
+
       const btn = document.createElement('button');
+      btn.className = 'btn-add';
+      btn.type = 'button';
       btn.textContent = 'Add';
       btn.onclick = () => addToCart(p.id);
-      div.appendChild(btn);
-      productListEl.appendChild(div);
+
+      bottom.appendChild(priceEl);
+      bottom.appendChild(btn);
+
+      card.appendChild(tag);
+      card.appendChild(imgWrap);
+      card.appendChild(nameEl);
+      card.appendChild(descEl);
+      card.appendChild(bottom);
+
+      productListEl.appendChild(card);
     });
   }
 
@@ -128,17 +129,49 @@ async function loadProductsAdmin() {
 
   function renderCart() {
     cartEl.innerHTML = '';
+
+    if (Object.keys(cart).length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'cart-empty';
+      empty.textContent = 'No items yet. Tap an item to add it.';
+      cartEl.appendChild(empty);
+      totalEl.textContent = '0.00';
+      return;
+    }
+
     let total = 0;
 
     Object.entries(cart).forEach(([pid, qty]) => {
       const product = products.find(p => p.id == pid);
       if (!product) return;
-      const lineTotal = product.price * qty;
+      const lineTotal = (product.price || 0) * qty;
       total += lineTotal;
 
-      const div = document.createElement('div');
-      div.textContent = `${product.name} x ${qty} = ${formatPrice(lineTotal)} AED`;
-      cartEl.appendChild(div);
+      const row = document.createElement('div');
+      row.className = 'cart-item';
+
+      const left = document.createElement('div');
+      left.className = 'cart-item-left';
+
+      const nameEl = document.createElement('div');
+      nameEl.className = 'cart-item-name';
+      nameEl.textContent = product.name;
+
+      const metaEl = document.createElement('div');
+      metaEl.className = 'cart-item-meta';
+      metaEl.textContent = `${qty} × ${formatPrice(product.price || 0)} AED`;
+
+      left.appendChild(nameEl);
+      left.appendChild(metaEl);
+
+      const priceEl = document.createElement('div');
+      priceEl.className = 'cart-item-price';
+      priceEl.textContent = `${formatPrice(lineTotal)} AED`;
+
+      row.appendChild(left);
+      row.appendChild(priceEl);
+
+      cartEl.appendChild(row);
     });
 
     totalEl.textContent = formatPrice(total);
@@ -153,7 +186,7 @@ async function loadProductsAdmin() {
     let total = 0;
     Object.entries(cart).forEach(([pid, qty]) => {
       const product = products.find(p => p.id == pid);
-      if (product) total += product.price * qty;
+      if (product) total += (product.price || 0) * qty;
     });
 
     const { data: order, error: orderError } = await client
@@ -234,12 +267,70 @@ if (isAdminPage) {
       }
 
       adminProductListEl.innerHTML = '';
+
+      if (!data || data.length === 0) {
+        adminProductListEl.textContent = 'No products yet. Add your first item above.';
+        return;
+      }
+
       data.forEach(p => {
-        const div = document.createElement('div');
-        div.textContent =
-          `#${p.id} ${p.name} - ${formatPrice(p.price)} AED - ` +
-          (p.is_available ? 'Available' : 'Hidden');
-        adminProductListEl.appendChild(div);
+        const row = document.createElement('div');
+        row.className = 'product-row';
+
+        const meta = document.createElement('div');
+        meta.className = 'product-meta';
+
+        const nameEl = document.createElement('div');
+        nameEl.className = 'product-name';
+        nameEl.textContent = p.name;
+
+        const extraEl = document.createElement('div');
+        extraEl.className = 'product-extra';
+        extraEl.textContent = `#${p.id} · ${p.is_available ? 'Visible' : 'Hidden'}`;
+
+        meta.appendChild(nameEl);
+        meta.appendChild(extraEl);
+
+        const right = document.createElement('div');
+        right.style.display = 'flex';
+        right.style.alignItems = 'center';
+        right.style.gap = '6px';
+
+        const priceEl = document.createElement('div');
+        priceEl.className = 'product-price';
+        priceEl.textContent = `${formatPrice(p.price || 0)} AED`;
+
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.textContent = 'Remove';
+        delBtn.className = 'btn btn-outline';
+        delBtn.style.fontSize = '11px';
+
+        delBtn.onclick = async () => {
+          const confirmDelete = confirm(`Remove "${p.name}" from the menu?`);
+          if (!confirmDelete) return;
+
+          const { error: deleteError } = await client
+            .from('products')
+            .delete()
+            .eq('id', p.id);
+
+          if (deleteError) {
+            alert('Error removing product.');
+            console.error(deleteError);
+            return;
+          }
+
+          await loadProductsAdmin();
+        };
+
+        right.appendChild(priceEl);
+        right.appendChild(delBtn);
+
+        row.appendChild(meta);
+        row.appendChild(right);
+
+        adminProductListEl.appendChild(row);
       });
     }
 
@@ -256,26 +347,44 @@ if (isAdminPage) {
       }
 
       ordersListEl.innerHTML = '';
+
+      if (!data || data.length === 0) {
+        ordersListEl.textContent = 'No orders yet.';
+        return;
+      }
+
       data.forEach(order => {
         const orderDiv = document.createElement('div');
-        orderDiv.style.border = '1px solid #ccc';
-        orderDiv.style.margin = '8px 0';
-        orderDiv.style.padding = '4px';
+        orderDiv.className = 'order-card';
 
         const header = document.createElement('div');
-        header.textContent =
-          `Order #${order.id} - ` +
-          `${new Date(order.created_at).toLocaleTimeString()} - ` +
-          `Total: ${formatPrice(order.total_price)} AED`;
-        orderDiv.appendChild(header);
+        header.className = 'order-header';
+
+        const idEl = document.createElement('div');
+        idEl.className = 'order-id';
+        idEl.textContent = `Order #${order.id}`;
+
+        const metaEl = document.createElement('div');
+        metaEl.className = 'order-meta';
+        metaEl.textContent = new Date(order.created_at).toLocaleTimeString();
+
+        const totalEl = document.createElement('div');
+        totalEl.className = 'order-total';
+        totalEl.textContent = `${formatPrice(order.total_price || 0)} AED`;
+
+        header.appendChild(idEl);
+        header.appendChild(metaEl);
+        header.appendChild(totalEl);
 
         const itemsUl = document.createElement('ul');
+        itemsUl.className = 'order-items';
         (order.order_items || []).forEach(oi => {
           const li = document.createElement('li');
-          li.textContent = `${oi.products.name} x ${oi.quantity}`;
+          li.textContent = `${oi.products.name} × ${oi.quantity}`;
           itemsUl.appendChild(li);
         });
 
+        orderDiv.appendChild(header);
         orderDiv.appendChild(itemsUl);
         ordersListEl.appendChild(orderDiv);
       });
