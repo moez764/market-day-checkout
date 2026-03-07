@@ -1,6 +1,6 @@
 // ---------- SUPABASE SETUP ----------
-const SUPABASE_URL = 'https://fjhgnspepthkintjsyyg.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable__2Yj9y_7TmmaYfRkAOJGCg_8AT55CZ3'; // from Supabase settings → API
+const SUPABASE_URL = 'https://YOUR-PROJECT-ID.supabase.co';
+const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY'; // from Supabase settings → API
 
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -19,6 +19,7 @@ if (isCustomerPage) {
   const cartEl = document.getElementById('cart');
   const totalEl = document.getElementById('total');
   const placeOrderBtn = document.getElementById('place-order-btn');
+  const categoryPillsEl = document.getElementById('category-pills');
 
   const orderModalOverlay = document.getElementById('order-modal-overlay');
   const orderModalNumber = document.getElementById('order-modal-number');
@@ -46,50 +47,120 @@ if (isCustomerPage) {
   }
 
   async function loadProducts() {
-  const { data, error } = await client
-    .from('products')
-    .select('*')
-    .order('id', { ascending: true });
+    const { data, error } = await client
+      .from('products')
+      .select('*')
+      .order('id', { ascending: true });
 
-  if (error) {
-    productListEl.textContent = 'Error loading products.';
-    console.error(error);
-    return;
+    if (error) {
+      productListEl.textContent = 'Error loading products.';
+      console.error(error);
+      return;
+    }
+
+    products = data || [];
+
+    const catSet = new Set();
+    products.forEach(p => {
+      if (p.category && p.category.trim() !== '') {
+        catSet.add(p.category.trim());
+      }
+    });
+    categories = Array.from(catSet).sort((a, b) =>
+      a.toLowerCase().localeCompare(b.toLowerCase())
+    );
+
+    renderCategoryButtons();
+    renderProducts();
   }
 
-  products = data || [];
+  function renderCategoryButtons() {
+    if (!categoryPillsEl) return;
 
-  // build category list from products (ignore null/empty)
-  const catSet = new Set();
-  products.forEach(p => {
-    if (p.category && p.category.trim() !== '') {
-      catSet.add(p.category.trim());
-    }
-  });
-  categories = Array.from(catSet).sort((a, b) =>
-    a.toLowerCase().localeCompare(b.toLowerCase())
-  );
+    categoryPillsEl.innerHTML = '';
 
-  renderCategoryButtons();
-  renderProducts();
-}
+    const allBtn = document.createElement('button');
+    allBtn.type = 'button';
+    allBtn.className = 'pill primary';
+    allBtn.textContent = 'All';
+    allBtn.onclick = () => {
+      selectedCategories.clear();
+      updateCategoryPillStyles();
+      renderProducts();
+    };
+    categoryPillsEl.appendChild(allBtn);
+
+    categories.forEach(cat => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'pill';
+      btn.textContent = cat;
+
+      btn.onclick = () => {
+        if (selectedCategories.has(cat)) {
+          selectedCategories.delete(cat);
+        } else {
+          selectedCategories.add(cat);
+        }
+        updateCategoryPillStyles();
+        renderProducts();
+      };
+
+      categoryPillsEl.appendChild(btn);
+    });
+
+    updateCategoryPillStyles();
+  }
+
+  function updateCategoryPillStyles() {
+    if (!categoryPillsEl) return;
+
+    const buttons = Array.from(categoryPillsEl.querySelectorAll('.pill'));
+    buttons.forEach(btn => {
+      const label = btn.textContent;
+      if (label === 'All') {
+        if (selectedCategories.size === 0) {
+          btn.classList.add('primary');
+        } else {
+          btn.classList.remove('primary');
+        }
+      } else {
+        if (selectedCategories.has(label)) {
+          btn.classList.add('primary');
+        } else {
+          btn.classList.remove('primary');
+        }
+      }
+    });
+  }
 
   function renderProducts() {
     const emojiFallback = '🍰';
 
     productListEl.innerHTML = '';
 
-    if (!products || products.length === 0) {
+    let visibleProducts = products;
+    if (selectedCategories.size > 0) {
+      visibleProducts = products.filter(p => {
+        const cat = (p.category || '').trim();
+        return cat && selectedCategories.has(cat);
+      });
+    }
+
+    if (!visibleProducts || visibleProducts.length === 0) {
       const empty = document.createElement('div');
       empty.style.gridColumn = '1 / -1';
       empty.style.textAlign = 'center';
       empty.style.color = '#8a6a5c';
-      empty.textContent = 'No products yet. Add some items in the admin panel.';
+      empty.textContent =
+        selectedCategories.size === 0
+          ? 'No products yet. Add some items in the admin panel.'
+          : 'No items in these categories.';
       productListEl.appendChild(empty);
       return;
     }
 
-    products.forEach(p => {
+    visibleProducts.forEach(p => {
       const card = document.createElement('div');
       card.className = 'product-card';
 
@@ -339,7 +410,8 @@ if (isAdminPage) {
 
         const extraEl = document.createElement('div');
         extraEl.className = 'product-extra';
-        extraEl.textContent = `#${p.id} · ${p.is_available ? 'Visible' : 'Hidden'}`;
+        const catText = p.category ? ` · ${p.category}` : '';
+        extraEl.textContent = `#${p.id}${catText}`;
 
         meta.appendChild(nameEl);
         meta.appendChild(extraEl);
@@ -443,33 +515,38 @@ if (isAdminPage) {
       });
     }
 
-async function addProduct() {
-  const name = nameInput.value.trim();
-  const priceAed = parseFloat(priceInput.value);
-  const category = categoryInput.value.trim();
+    async function addProduct() {
+      const name = nameInput.value.trim();
+      const priceAed = parseFloat(priceInput.value);
+      const category = categoryInput.value.trim();
 
-  if (!name || isNaN(priceAed)) {
-    alert('Enter name and price.');
-    return;
-  }
+      if (!name || isNaN(priceAed)) {
+        alert('Enter name and price.');
+        return;
+      }
 
-  const priceFils = Math.round(priceAed * 100);
+      const priceFils = Math.round(priceAed * 100);
 
-  const { error } = await client
-    .from('products')
-    .insert({ name, price: priceFils, is_available: true, category: category || null });
+      const { error } = await client
+        .from('products')
+        .insert({
+          name,
+          price: priceFils,
+          is_available: true,
+          category: category || null
+        });
 
-  if (error) {
-    alert('Error adding product.');
-    console.error(error);
-    return;
-  }
+      if (error) {
+        alert('Error adding product.');
+        console.error(error);
+        return;
+      }
 
-  nameInput.value = '';
-  priceInput.value = '';
-  categoryInput.value = '';
-  await loadProductsAdmin();
-}
+      nameInput.value = '';
+      priceInput.value = '';
+      categoryInput.value = '';
+      await loadProductsAdmin();
+    }
 
     addProductBtn.addEventListener('click', addProduct);
     refreshOrdersBtn.addEventListener('click', loadOrders);
