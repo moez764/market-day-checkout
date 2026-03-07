@@ -1,372 +1,105 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Admin · Sweet Spot Kiosk</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-  <style>
-    :root {
-      --bg: #050608;
-      --panel: #111317;
-      --panel-soft: #181b21;
-      --accent: #ff7a59;
-      --accent-soft: rgba(255, 122, 89, 0.18);
-      --text-main: #f8f9ff;
-      --text-muted: #9095a3;
-      --border-subtle: rgba(255, 255, 255, 0.06);
-      --radius-lg: 20px;
-      --radius-md: 14px;
-      --radius-sm: 10px;
-      --shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
-    }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-        Roboto, sans-serif;
-    }
-
-    body {
-      background: radial-gradient(circle at top, #29202b, #050608 60%);
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-      color: var(--text-main);
-    }
-
-    .admin-shell {
-      width: 100%;
-      max-width: 1120px;
-      background: linear-gradient(145deg, #101219 0%, #050608 60%, #181b21 100%);
-      border-radius: 28px;
-      box-shadow: var(--shadow);
-      padding: 20px;
-      display: grid;
-      grid-template-columns: 1.2fr 2fr;
-      gap: 18px;
-    }
-
-    .side-panel {
-      background: var(--panel);
-      border-radius: var(--radius-lg);
-      padding: 18px 18px 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-      border: 1px solid var(--border-subtle);
-    }
-
-    .main-panel {
-      background: var(--panel-soft);
-      border-radius: var(--radius-lg);
-      padding: 18px 18px 16px;
-      border: 1px solid var(--border-subtle);
-      display: flex;
-      flex-direction: column;
-    }
-
-    .admin-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 8px;
-    }
-
-    .admin-title {
-      font-size: 20px;
-      font-weight: 700;
-    }
-
-    .admin-subtitle {
-      font-size: 12px;
-      color: var(--text-muted);
-      margin-top: 2px;
-    }
-
-    .status-pill {
-      padding: 6px 12px;
-      border-radius: 999px;
-      border: 1px solid rgba(255,255,255,0.12);
-      font-size: 12px;
-      color: var(--text-muted);
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .status-pill span {
-      width: 7px;
-      height: 7px;
-      border-radius: 999px;
-      background: #00c46a;
-    }
-
-    .card-title {
-      font-size: 14px;
-      font-weight: 600;
-      margin-bottom: 4px;
-    }
-
-    .card-caption {
-      font-size: 12px;
-      color: var(--text-muted);
-      margin-bottom: 8px;
-    }
-
-    .field-group {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      margin-bottom: 10px;
-    }
-
-    label {
-      font-size: 12px;
-      color: var(--text-muted);
-    }
-
-    input[type="text"],
-    input[type="number"],
-    input[type="password"] {
-      width: 100%;
-      padding: 8px 10px;
-      border-radius: var(--radius-md);
-      border: 1px solid var(--border-subtle);
-      background: #11141b;
-      color: var(--text-main);
-      font-size: 13px;
-    }
-
-    input::placeholder {
-      color: #555a67;
-    }
-
-    .btn {
-      border-radius: 999px;
-      border: none;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      padding: 8px 14px;
-    }
-
-    .btn-primary {
-      background: var(--accent);
-      color: #1a1010;
-      box-shadow: 0 10px 24px rgba(255, 122, 89, 0.4);
-    }
-
-    .btn-primary:active {
-      transform: translateY(1px);
-      box-shadow: 0 4px 14px rgba(255, 122, 89, 0.6);
-    }
-
-    .btn-outline {
-      background: transparent;
-      color: var(--text-muted);
-      border: 1px solid var(--border-subtle);
-    }
-
-    .lock-card {
-      background: radial-gradient(circle at top left, #2c1a21, #0b0508 60%);
-      border-radius: var(--radius-lg);
-      padding: 16px 16px 14px;
-      border: 1px solid rgba(255, 122, 89, 0.45);
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .lock-title {
-      font-size: 14px;
-      font-weight: 600;
-    }
-
-    .lock-caption {
-      font-size: 12px;
-      color: #f3c7ba;
-    }
-
-    .lock-row {
-      display: flex;
-      gap: 8px;
-      margin-top: 4px;
-    }
-
-    .products-list,
-    .orders-list {
-      margin-top: 8px;
-      border-radius: var(--radius-md);
-      border: 1px solid var(--border-subtle);
-      background: #10141c;
-      padding: 10px;
-      max-height: 260px;
-      overflow-y: auto;
-      font-size: 12px;
-    }
-
-    .product-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 6px 6px;
-      border-radius: var(--radius-sm);
-      background: rgba(255, 255, 255, 0.02);
-      margin-bottom: 4px;
-    }
-
-    .product-meta {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-
-    .product-name {
-      font-size: 13px;
-      font-weight: 600;
-    }
-
-    .product-extra {
-      font-size: 11px;
-      color: var(--text-muted);
-    }
-
-    .product-price {
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--accent);
-    }
-
-    .order-card {
-      border-radius: var(--radius-md);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      padding: 8px 8px 6px;
-      margin-bottom: 6px;
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
-    }
-
-    .order-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 4px;
-    }
-
-    .order-id {
-      font-size: 13px;
-      font-weight: 600;
-    }
-
-    .order-meta {
-      font-size: 11px;
-      color: var(--text-muted);
-    }
-
-    .order-total {
-      font-size: 14px;
-      font-weight: 700;
-      color: #ffcf8f;
-    }
-
-    .order-items {
-      margin-top: 4px;
-      padding-left: 14px;
-      list-style: disc;
-      font-size: 12px;
-      color: #e3e6f0;
-    }
-
-    @media (max-width: 900px) {
-      .admin-shell {
-        grid-template-columns: 1fr;
-        padding: 14px;
-        border-radius: 20px;
-      }
-    }
-  </style>
+  <meta charset="UTF-8" />
+  <title>Market Day Admin</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script defer src="main.js"></script>
 </head>
-<body>
-  <div class="admin-shell">
-    <div class="side-panel">
+<body class="admin-body">
+  <div class="admin-wrap">
+
+    <!-- LOCK SCREEN -->
+    <div id="locked" class="locked-screen">
+      <h1>Admin login</h1>
+      <p>Enter the admin password to manage products and view orders.</p>
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="admin-pass">Password</label>
+          <input id="admin-pass" type="password" placeholder="••••••••" />
+        </div>
+      </div>
+      <button id="unlock-btn" class="btn primary">Unlock</button>
+    </div>
+
+    <!-- ADMIN CONTENT -->
+    <div class="admin-panel" id="admin-content" style="display:none">
       <header class="admin-header">
-        <div>
-          <div class="admin-title">Sweet Spot · Admin</div>
-          <div class="admin-subtitle">Manage products & view live orders</div>
-        </div>
-        <div class="status-pill">
-          <span></span> Connected
-        </div>
+        <h1>Admin – Market Day</h1>
+        <p>Manage products, prices, images, and track incoming orders.</p>
       </header>
 
-      <!-- Password lock -->
-      <div id="locked" class="lock-card">
-        <div class="lock-title">Admin access only</div>
-        <div class="lock-caption">Enter the kiosk admin password to manage the menu and see orders.</div>
-        <div class="lock-row">
-          <input id="admin-pass" type="password" placeholder="Admin password">
-          <button id="unlock-btn" class="btn btn-primary" type="button">Unlock</button>
-        </div>
-      </div>
+      <!-- ADD PRODUCT -->
+      <section class="card">
+        <h2>Add product</h2>
 
-      <!-- Admin content (hidden until unlock) -->
-      <div id="admin-content" style="display:none;">
-        <div style="margin-top: 6px;">
-          <div class="card-title">Add product</div>
-          <div class="card-caption">Create new items for the kiosk menu.</div>
-          
-<div class="field-group">
-  <label for="product-name">Name</label>
-  <input id="product-name" type="text" placeholder="e.g. Chocolate Brownie">
-</div>
+        <div class="form-grid">
+          <div class="form-field">
+            <label for="product-name">Name</label>
+            <input id="product-name" type="text" placeholder="Brownie" />
+          </div>
 
-<div class="field-group">
-  <label for="product-price">Price (AED)</label>
-  <input id="product-price" type="number" step="0.5" placeholder="e.g. 7.5">
-</div>
+          <div class="form-field">
+            <label for="product-price">Price (AED)</label>
+            <input
+              id="product-price"
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="5.00"
+            />
+          </div>
 
-<div class="field-group">
-  <label for="product-category">Category</label>
-  <input id="product-category" type="text" placeholder="e.g. Ice cream">
-</div>
+          <div class="form-field">
+            <label for="product-category">Category</label>
+            <input
+              id="product-category"
+              type="text"
+              placeholder="Drinks, Desserts…"
+            />
+          </div>
 
-
-          <button id="add-product-btn" class="btn btn-primary" type="button">
-            Add to menu
-          </button>
-        </div>
-
-        <div style="margin-top: 14px;">
-          <div class="card-title">Current products</div>
-          <div class="card-caption">Visible to customers on the kiosk.</div>
-          <div id="admin-product-list" class="products-list">
-            <!-- Filled by JS -->
+          <div class="form-field">
+            <label for="product-image-url">Image link</label>
+            <input
+              id="product-image-url"
+              type="text"
+              placeholder="https://your-storage-url/image.png"
+            />
+            <small class="help-text">
+              Paste a direct image URL (Supabase Storage public URL or any public image link).
+            </small>
           </div>
         </div>
-      </div>
-    </div>
 
-    <!-- Orders panel -->
-    <div class="main-panel">
-      <div class="admin-header">
-        <div>
-          <div class="card-title">Orders</div>
-          <div class="card-caption">Newest orders appear at the top.</div>
+        <button id="add-product-btn" class="btn primary">Add product</button>
+      </section>
+
+      <!-- PRODUCT LIST -->
+      <section class="card">
+        <div class="card-header-row">
+          <h2>Products</h2>
         </div>
-        <button class="btn btn-outline" type="button" id="refresh-orders-btn">Refresh</button>
-      </div>
+        <div id="admin-product-list" class="list-column">
+          <!-- Filled by main.js -->
+        </div>
+      </section>
 
-      <div id="orders-list" class="orders-list">
-        <!-- Filled by JS -->
-      </div>
+      <!-- ORDERS -->
+      <section class="card">
+        <div class="card-header-row">
+          <h2>Orders</h2>
+          <button id="refresh-orders-btn" class="btn btn-outline">
+            Refresh
+          </button>
+        </div>
+        <div id="orders-list" class="list-column">
+          <!-- Filled by main.js -->
+        </div>
+      </section>
     </div>
   </div>
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="main.js" defer></script>
 </body>
 </html>
