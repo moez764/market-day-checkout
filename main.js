@@ -50,7 +50,6 @@ if (isCustomerPage) {
     const { data, error } = await client
       .from('products')
       .select('*')
-      .eq('is_available', true)
       .order('id', { ascending: true });
 
     if (error) {
@@ -412,8 +411,7 @@ if (isAdminPage) {
         const extraEl = document.createElement('div');
         extraEl.className = 'product-extra';
         const catText = p.category ? ` · ${p.category}` : '';
-        const visibleText = p.is_available ? '' : ' · hidden';
-        extraEl.textContent = `#${p.id}${catText}${visibleText}`;
+        extraEl.textContent = `#${p.id}${catText}`;
 
         meta.appendChild(nameEl);
         meta.appendChild(extraEl);
@@ -427,28 +425,39 @@ if (isAdminPage) {
         priceEl.className = 'product-price';
         priceEl.textContent = `${formatPrice(p.price || 0)} AED`;
 
-        const toggleBtn = document.createElement('button');
-        toggleBtn.type = 'button';
-        toggleBtn.textContent = p.is_available ? 'Hide from kiosk' : 'Show on kiosk';
-        toggleBtn.className = 'btn btn-outline';
-        toggleBtn.style.fontSize = '11px';
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.textContent = 'Remove';
+        delBtn.className = 'btn btn-outline';
+        delBtn.style.fontSize = '11px';
 
-        toggleBtn.onclick = async () => {
-          const makeAvailable = !p.is_available;
-          const confirmMsg = makeAvailable
-            ? `Show "${p.name}" on the kiosk again?`
-            : `Hide "${p.name}" from the kiosk? (Existing orders stay in history.)`;
-          const ok = confirm(confirmMsg);
+        delBtn.onclick = async () => {
+          const ok = confirm(
+            `Completely delete "${p.name}" and all of its order items?`
+          );
           if (!ok) return;
 
-          const { error: updateError } = await client
+          // delete order_items referencing this product
+          const { error: itemsError } = await client
+            .from('order_items')
+            .delete()
+            .eq('product_id', p.id);
+
+          if (itemsError) {
+            alert('Error deleting order items for this product.');
+            console.error(itemsError);
+            return;
+          }
+
+          // delete the product itself
+          const { error: deleteError } = await client
             .from('products')
-            .update({ is_available: makeAvailable })
+            .delete()
             .eq('id', p.id);
 
-          if (updateError) {
-            alert('Error updating product visibility.');
-            console.error(updateError);
+          if (deleteError) {
+            alert('Error deleting product.');
+            console.error(deleteError);
             return;
           }
 
@@ -456,7 +465,7 @@ if (isAdminPage) {
         };
 
         right.appendChild(priceEl);
-        right.appendChild(toggleBtn);
+        right.appendChild(delBtn);
 
         row.appendChild(meta);
         row.appendChild(right);
