@@ -374,6 +374,7 @@ if (isAdminPage) {
     const priceInput = document.getElementById('product-price');
     const categoryInput = document.getElementById('product-category');
     const imageUrlInput = document.getElementById('product-image-url');
+    const descriptionInput = document.getElementById('product-description');
     const addProductBtn = document.getElementById('add-product-btn');
     const adminProductListEl = document.getElementById('admin-product-list');
     const ordersListEl = document.getElementById('orders-list');
@@ -531,41 +532,45 @@ if (isAdminPage) {
       });
     }
 
-    async function addProduct() {
-      const name = nameInput.value.trim();
-      const priceAed = parseFloat(priceInput.value);
-      const category = categoryInput.value.trim();
-      const imageUrl = imageUrlInput.value.trim();
+async function addProduct() {
+  const name = nameInput.value.trim();
+  const priceAed = parseFloat(priceInput.value);
+  const category = categoryInput.value.trim();
+  const imageUrl = imageUrlInput.value.trim();
+  const description = descriptionInput.value.trim();
 
-      if (!name || isNaN(priceAed)) {
-        alert('Enter name and price.');
-        return;
-      }
+  if (!name || isNaN(priceAed)) {
+    alert('Enter name and price.');
+    return;
+  }
 
-      const priceFils = Math.round(priceAed * 100);
+  const priceFils = Math.round(priceAed * 100);
 
-      const { error } = await client
-        .from('products')
-        .insert({
-          name,
-          price: priceFils,
-          is_available: true,
-          category: category || null,
-          image_url: imageUrl || null
-        });
+  const { error } = await client
+    .from('products')
+    .insert({
+      name,
+      price: priceFils,
+      is_available: true,
+      category: category || null,
+      image_url: imageUrl || null,
+      description: description || null
+    });
 
-      if (error) {
-        alert('Error adding product.');
-        console.error('Add product error:', error);
-        return;
-      }
+  if (error) {
+    alert('Error adding product.');
+    console.error('Add product error:', error);
+    return;
+  }
 
-      nameInput.value = '';
-      priceInput.value = '';
-      categoryInput.value = '';
-      imageUrlInput.value = '';
-      await loadProductsAdmin();
-    }
+  nameInput.value = '';
+  priceInput.value = '';
+  categoryInput.value = '';
+  imageUrlInput.value = '';
+  descriptionInput.value = '';
+  await loadProductsAdmin();
+}
+
 
     addProductBtn.addEventListener('click', addProduct);
     refreshOrdersBtn.addEventListener('click', loadOrders);
