@@ -427,13 +427,13 @@ if (isAdminPage) {
         priceEl.className = 'product-price';
         priceEl.textContent = `${formatPrice(p.price || 0)} AED`;
 
-        const delBtn = document.createElement('button');
-        delBtn.type = 'button';
-        delBtn.textContent = p.is_available ? 'Hide' : 'Show';
-        delBtn.className = 'btn btn-outline';
-        delBtn.style.fontSize = '11px';
+        const toggleBtn = document.createElement('button');
+        toggleBtn.type = 'button';
+        toggleBtn.textContent = p.is_available ? 'Hide from kiosk' : 'Show on kiosk';
+        toggleBtn.className = 'btn btn-outline';
+        toggleBtn.style.fontSize = '11px';
 
-        delBtn.onclick = async () => {
+        toggleBtn.onclick = async () => {
           const makeAvailable = !p.is_available;
           const confirmMsg = makeAvailable
             ? `Show "${p.name}" on the kiosk again?`
@@ -456,7 +456,7 @@ if (isAdminPage) {
         };
 
         right.appendChild(priceEl);
-        right.appendChild(delBtn);
+        right.appendChild(toggleBtn);
 
         row.appendChild(meta);
         row.appendChild(right);
