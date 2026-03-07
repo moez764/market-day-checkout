@@ -26,6 +26,8 @@ if (isCustomerPage) {
 
   let products = [];
   let cart = {}; // { productId: quantity }
+  let categories = [];
+  let selectedCategories = new Set();
 
   function showOrderModal(orderId) {
     orderModalNumber.textContent = `#${orderId}`;
@@ -44,20 +46,33 @@ if (isCustomerPage) {
   }
 
   async function loadProducts() {
-    const { data, error } = await client
-      .from('products')
-      .select('*')
-      .order('id', { ascending: true });
+  const { data, error } = await client
+    .from('products')
+    .select('*')
+    .order('id', { ascending: true });
 
-    if (error) {
-      productListEl.textContent = 'Error loading products.';
-      console.error(error);
-      return;
-    }
-
-    products = data;
-    renderProducts();
+  if (error) {
+    productListEl.textContent = 'Error loading products.';
+    console.error(error);
+    return;
   }
+
+  products = data || [];
+
+  // build category list from products (ignore null/empty)
+  const catSet = new Set();
+  products.forEach(p => {
+    if (p.category && p.category.trim() !== '') {
+      catSet.add(p.category.trim());
+    }
+  });
+  categories = Array.from(catSet).sort((a, b) =>
+    a.toLowerCase().localeCompare(b.toLowerCase())
+  );
+
+  renderCategoryButtons();
+  renderProducts();
+}
 
   function renderProducts() {
     const emojiFallback = '🍰';
@@ -286,6 +301,7 @@ if (isAdminPage) {
   function initAdmin() {
     const nameInput = document.getElementById('product-name');
     const priceInput = document.getElementById('product-price');
+    const categoryInput = document.getElementById('product-category');
     const addProductBtn = document.getElementById('add-product-btn');
     const adminProductListEl = document.getElementById('admin-product-list');
     const ordersListEl = document.getElementById('orders-list');
@@ -427,30 +443,33 @@ if (isAdminPage) {
       });
     }
 
-    async function addProduct() {
-      const name = nameInput.value.trim();
-      const priceAed = parseFloat(priceInput.value);
-      if (!name || isNaN(priceAed)) {
-        alert('Enter name and price.');
-        return;
-      }
+async function addProduct() {
+  const name = nameInput.value.trim();
+  const priceAed = parseFloat(priceInput.value);
+  const category = categoryInput.value.trim();
 
-      const priceFils = Math.round(priceAed * 100);
+  if (!name || isNaN(priceAed)) {
+    alert('Enter name and price.');
+    return;
+  }
 
-      const { error } = await client
-        .from('products')
-        .insert({ name, price: priceFils, is_available: true });
+  const priceFils = Math.round(priceAed * 100);
 
-      if (error) {
-        alert('Error adding product.');
-        console.error(error);
-        return;
-      }
+  const { error } = await client
+    .from('products')
+    .insert({ name, price: priceFils, is_available: true, category: category || null });
 
-      nameInput.value = '';
-      priceInput.value = '';
-      await loadProductsAdmin();
-    }
+  if (error) {
+    alert('Error adding product.');
+    console.error(error);
+    return;
+  }
+
+  nameInput.value = '';
+  priceInput.value = '';
+  categoryInput.value = '';
+  await loadProductsAdmin();
+}
 
     addProductBtn.addEventListener('click', addProduct);
     refreshOrdersBtn.addEventListener('click', loadOrders);
