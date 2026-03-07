@@ -54,7 +54,7 @@ if (isCustomerPage) {
 
     if (error) {
       productListEl.textContent = 'Error loading products.';
-      console.error(error);
+      console.error('Error loading products:', error);
       return;
     }
 
@@ -319,7 +319,7 @@ if (isCustomerPage) {
 
     if (orderError) {
       alert('Error placing order.');
-      console.error(orderError);
+      console.error('Order insert error:', orderError);
       return;
     }
 
@@ -337,7 +337,7 @@ if (isCustomerPage) {
 
     if (itemsError) {
       alert('Error saving order items.');
-      console.error(itemsError);
+      console.error('Order items insert error:', itemsError);
       return;
     }
 
@@ -373,6 +373,7 @@ if (isAdminPage) {
     const nameInput = document.getElementById('product-name');
     const priceInput = document.getElementById('product-price');
     const categoryInput = document.getElementById('product-category');
+    const imageUrlInput = document.getElementById('product-image-url');
     const addProductBtn = document.getElementById('add-product-btn');
     const adminProductListEl = document.getElementById('admin-product-list');
     const ordersListEl = document.getElementById('orders-list');
@@ -386,7 +387,7 @@ if (isAdminPage) {
 
       if (error) {
         adminProductListEl.textContent = 'Error loading products.';
-        console.error(error);
+        console.error('Admin load products error:', error);
         return;
       }
 
@@ -437,27 +438,27 @@ if (isAdminPage) {
           );
           if (!ok) return;
 
-          // delete order_items referencing this product
+          // 1) delete order_items referencing this product
           const { error: itemsError } = await client
             .from('order_items')
             .delete()
             .eq('product_id', p.id);
 
           if (itemsError) {
-            alert('Error deleting order items for this product.');
-            console.error(itemsError);
+            alert('Error deleting order items for this product. See console.');
+            console.error('Delete order_items error:', itemsError);
             return;
           }
 
-          // delete the product itself
+          // 2) delete the product itself
           const { error: deleteError } = await client
             .from('products')
             .delete()
             .eq('id', p.id);
 
           if (deleteError) {
-            alert('Error deleting product.');
-            console.error(deleteError);
+            alert('Error deleting product. See console.');
+            console.error('Delete product error:', deleteError);
             return;
           }
 
@@ -482,7 +483,7 @@ if (isAdminPage) {
 
       if (error) {
         ordersListEl.textContent = 'Error loading orders.';
-        console.error(error);
+        console.error('Admin load orders error:', error);
         return;
       }
 
@@ -534,6 +535,7 @@ if (isAdminPage) {
       const name = nameInput.value.trim();
       const priceAed = parseFloat(priceInput.value);
       const category = categoryInput.value.trim();
+      const imageUrl = imageUrlInput.value.trim();
 
       if (!name || isNaN(priceAed)) {
         alert('Enter name and price.');
@@ -548,18 +550,20 @@ if (isAdminPage) {
           name,
           price: priceFils,
           is_available: true,
-          category: category || null
+          category: category || null,
+          image_url: imageUrl || null
         });
 
       if (error) {
         alert('Error adding product.');
-        console.error(error);
+        console.error('Add product error:', error);
         return;
       }
 
       nameInput.value = '';
       priceInput.value = '';
       categoryInput.value = '';
+      imageUrlInput.value = '';
       await loadProductsAdmin();
     }
 
