@@ -5,7 +5,6 @@
   <title>Market Day Admin</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <!-- INLINE CSS SO IT'S NOT JUST PLAIN TEXT -->
   <style>
     :root {
       --bg: #f7f0ea;
@@ -115,7 +114,8 @@
 
     input[type="text"],
     input[type="number"],
-    input[type="password"] {
+    input[type="password"],
+    textarea {
       border-radius: 10px;
       border: 1px solid var(--border-soft);
       padding: 8px 10px;
@@ -123,9 +123,11 @@
       outline: none;
       transition: border 0.15s ease, box-shadow 0.15s ease;
       background: rgba(255, 255, 255, 0.92);
+      resize: vertical;
     }
 
-    input:focus {
+    input:focus,
+    textarea:focus {
       border-color: var(--accent);
       box-shadow: 0 0 0 2px rgba(185, 110, 75, 0.18);
     }
@@ -311,7 +313,7 @@
     <div class="admin-panel" id="admin-content" style="display:none">
       <header class="admin-header">
         <h1>Admin – Market Day</h1>
-        <p>Manage products, prices, images, and track incoming orders.</p>
+        <p>Manage products, prices, images, descriptions, and track incoming orders.</p>
       </header>
 
       <!-- ADD PRODUCT -->
@@ -355,6 +357,15 @@
               Paste a direct image URL (Supabase Storage public URL or any public image link).
             </small>
           </div>
+        </div>
+
+        <div class="form-field">
+          <label for="product-description">Description</label>
+          <textarea
+            id="product-description"
+            rows="3"
+            placeholder="Example: Rich fudgy brownie with chocolate chips."
+          ></textarea>
         </div>
 
         <button id="add-product-btn" class="btn primary">Add product</button>
