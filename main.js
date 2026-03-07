@@ -1,10 +1,9 @@
 // ---------- SUPABASE SETUP ----------
 const SUPABASE_URL = 'https://fjhgnspepthkintjsyyg.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable__2Yj9y_7TmmaYfRkAOJGCg_8AT55CZ3'; // from Supabase settings → API
+const SUPABASE_ANON_KEY = 'sb_publishable__2Yj9y_7TmmaYfRkAOJGCg_8AT55CZ3';
 
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// route: anything not admin.html = customer page
 const path = document.location.pathname;
 const isAdminPage = path.endsWith('admin.html');
 const isCustomerPage = !isAdminPage;
@@ -26,7 +25,7 @@ if (isCustomerPage) {
   const orderModalClose = document.getElementById('order-modal-close');
 
   let products = [];
-  let cart = {}; // { productId: quantity }
+  let cart = {};
   let categories = [];
   let selectedCategories = new Set();
 
@@ -194,7 +193,9 @@ if (isCustomerPage) {
       const descEl = document.createElement('div');
       descEl.className = 'product-desc';
       descEl.textContent =
-        p.description || 'Sweet, chilled and perfect for market day.';
+        (p.description && p.description.trim().length > 0)
+          ? p.description
+          : 'Sweet, chilled and perfect for market day.';
 
       const bottom = document.createElement('div');
       bottom.className = 'product-bottom';
@@ -439,7 +440,6 @@ if (isAdminPage) {
           );
           if (!ok) return;
 
-          // 1) delete order_items referencing this product
           const { error: itemsError } = await client
             .from('order_items')
             .delete()
@@ -451,7 +451,6 @@ if (isAdminPage) {
             return;
           }
 
-          // 2) delete the product itself
           const { error: deleteError } = await client
             .from('products')
             .delete()
@@ -532,45 +531,44 @@ if (isAdminPage) {
       });
     }
 
-async function addProduct() {
-  const name = nameInput.value.trim();
-  const priceAed = parseFloat(priceInput.value);
-  const category = categoryInput.value.trim();
-  const imageUrl = imageUrlInput.value.trim();
-  const description = descriptionInput.value.trim();
+    async function addProduct() {
+      const name = nameInput.value.trim();
+      const priceAed = parseFloat(priceInput.value);
+      const category = categoryInput.value.trim();
+      const imageUrl = imageUrlInput.value.trim();
+      const description = descriptionInput.value.trim();
 
-  if (!name || isNaN(priceAed)) {
-    alert('Enter name and price.');
-    return;
-  }
+      if (!name || isNaN(priceAed)) {
+        alert('Enter name and price.');
+        return;
+      }
 
-  const priceFils = Math.round(priceAed * 100);
+      const priceFils = Math.round(priceAed * 100);
 
-  const { error } = await client
-    .from('products')
-    .insert({
-      name,
-      price: priceFils,
-      is_available: true,
-      category: category || null,
-      image_url: imageUrl || null,
-      description: description || null
-    });
+      const { error } = await client
+        .from('products')
+        .insert({
+          name,
+          price: priceFils,
+          is_available: true,
+          category: category || null,
+          image_url: imageUrl || null,
+          description: description || null
+        });
 
-  if (error) {
-    alert('Error adding product.');
-    console.error('Add product error:', error);
-    return;
-  }
+      if (error) {
+        alert('Error adding product.');
+        console.error('Add product error:', error);
+        return;
+      }
 
-  nameInput.value = '';
-  priceInput.value = '';
-  categoryInput.value = '';
-  imageUrlInput.value = '';
-  descriptionInput.value = '';
-  await loadProductsAdmin();
-}
-
+      nameInput.value = '';
+      priceInput.value = '';
+      categoryInput.value = '';
+      imageUrlInput.value = '';
+      descriptionInput.value = '';
+      await loadProductsAdmin();
+    }
 
     addProductBtn.addEventListener('click', addProduct);
     refreshOrdersBtn.addEventListener('click', loadOrders);
