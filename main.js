@@ -1,10 +1,10 @@
 // ---------- SUPABASE SETUP ----------
-const SUPABASE_URL = 'https://YOUR-PROJECT-ID.supabase.co';
-const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY'; // from Supabase settings → API
+const SUPABASE_URL = 'https://fjhgnspepthkintjsyyg.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable__2Yj9y_7TmmaYfRkAOJGCg_8AT55CZ3'; // from Supabase settings → API
 
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// GitHub Pages: treat anything that's not admin.html as the customer page
+// route: anything not admin.html = customer page
 const path = document.location.pathname;
 const isAdminPage = path.endsWith('admin.html');
 const isCustomerPage = !isAdminPage;
@@ -50,6 +50,7 @@ if (isCustomerPage) {
     const { data, error } = await client
       .from('products')
       .select('*')
+      .eq('is_available', true)
       .order('id', { ascending: true });
 
     if (error) {
@@ -411,7 +412,8 @@ if (isAdminPage) {
         const extraEl = document.createElement('div');
         extraEl.className = 'product-extra';
         const catText = p.category ? ` · ${p.category}` : '';
-        extraEl.textContent = `#${p.id}${catText}`;
+        const visibleText = p.is_available ? '' : ' · hidden';
+        extraEl.textContent = `#${p.id}${catText}${visibleText}`;
 
         meta.appendChild(nameEl);
         meta.appendChild(extraEl);
@@ -427,22 +429,26 @@ if (isAdminPage) {
 
         const delBtn = document.createElement('button');
         delBtn.type = 'button';
-        delBtn.textContent = 'Remove';
+        delBtn.textContent = p.is_available ? 'Hide' : 'Show';
         delBtn.className = 'btn btn-outline';
         delBtn.style.fontSize = '11px';
 
         delBtn.onclick = async () => {
-          const confirmDelete = confirm(`Remove "${p.name}" from the menu?`);
-          if (!confirmDelete) return;
+          const makeAvailable = !p.is_available;
+          const confirmMsg = makeAvailable
+            ? `Show "${p.name}" on the kiosk again?`
+            : `Hide "${p.name}" from the kiosk? (Existing orders stay in history.)`;
+          const ok = confirm(confirmMsg);
+          if (!ok) return;
 
-          const { error: deleteError } = await client
+          const { error: updateError } = await client
             .from('products')
-            .delete()
+            .update({ is_available: makeAvailable })
             .eq('id', p.id);
 
-          if (deleteError) {
-            alert('Error removing product.');
-            console.error(deleteError);
+          if (updateError) {
+            alert('Error updating product visibility.');
+            console.error(updateError);
             return;
           }
 
