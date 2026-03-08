@@ -2,6 +2,9 @@
 const SUPABASE_URL = 'https://fjhgnspepthkintjsyyg.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable__2Yj9y_7TmmaYfRkAOJGCg_8AT55CZ3';
 
+// bucket where product images are stored (must exist and be public in Supabase)
+const PRODUCT_IMAGE_BUCKET = 'product-images';
+
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const path = document.location.pathname;
@@ -347,13 +350,13 @@ if (isCustomerPage) {
     renderCart();
   }
 
-  placeOrderBtn.addEventListener('click', placeOrder);
-  loadProducts();
+  if (placeOrderBtn) placeOrderBtn.addEventListener('click', placeOrder);
+  if (productListEl) loadProducts();
 }
 
 // ---------- ADMIN PAGE ----------
 if (isAdminPage) {
-  const ADMIN_PASSWORD = 'admin12345';
+  const ADMIN_PASSWORD = 'change_me_before_market_day';
 
   const lockedDiv = document.getElementById('locked');
   const contentDiv = document.getElementById('admin-content');
@@ -374,13 +377,182 @@ if (isAdminPage) {
     const nameInput = document.getElementById('product-name');
     const priceInput = document.getElementById('product-price');
     const categoryInput = document.getElementById('product-category');
-    const imageUrlInput = document.getElementById('product-image-url');
     const descriptionInput = document.getElementById('product-description');
+
+    const imageFileInput = document.getElementById('image-file');
+    const imageCanvas = document.getElementById('image-canvas');
+    const clearImageBtn = document.getElementById('clear-image-btn');
+    const useCropBtn = document.getElementById('use-crop-btn');
+    const croppedPreviewImg = document.getElementById('cropped-preview');
+
     const addProductBtn = document.getElementById('add-product-btn');
     const adminProductListEl = document.getElementById('admin-product-list');
     const ordersListEl = document.getElementById('orders-list');
     const refreshOrdersBtn = document.getElementById('refresh-orders-btn');
 
+    // ----- Image cropper state -----
+    const ctx = imageCanvas.getContext('2d');
+    let originalImage = null;
+    let imageLoaded = false;
+    let cropStartX = null;
+    let cropStartY = null;
+    let cropEndX = null;
+    let cropEndY = null;
+    let isDragging = false;
+    let croppedBlob = null;
+
+    function resetImageCropper() {
+      ctx.clearRect(0, 0, imageCanvas.width, imageCanvas.height);
+      originalImage = null;
+      imageLoaded = false;
+      cropStartX = cropStartY = cropEndX = cropEndY = null;
+      isDragging = false;
+      croppedBlob = null;
+      croppedPreviewImg.style.display = 'none';
+      croppedPreviewImg.src = '';
+    }
+
+    imageFileInput.addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (!file) {
+        resetImageCropper();
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = ev => {
+        originalImage = new Image();
+        originalImage.onload = () => {
+          imageCanvas.width = originalImage.width;
+          imageCanvas.height = originalImage.height;
+          ctx.drawImage(originalImage, 0, 0, imageCanvas.width, imageCanvas.height);
+          imageLoaded = true;
+        };
+        originalImage.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    function redrawCanvasWithCropRect() {
+      if (!originalImage) return;
+      ctx.clearRect(0, 0, imageCanvas.width, imageCanvas.height);
+      ctx.drawImage(originalImage, 0, 0, imageCanvas.width, imageCanvas.height);
+
+      if (cropStartX !== null && cropStartY !== null && cropEndX !== null && cropEndY !== null) {
+        const x = Math.min(cropStartX, cropEndX);
+        const y = Math.min(cropStartY, cropEndY);
+        const size = Math.min(Math.abs(cropEndX - cropStartX), Math.abs(cropEndY - cropStartY));
+
+        ctx.strokeStyle = 'rgba(255, 0, 0, 0.9)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, size, size);
+      }
+    }
+
+    imageCanvas.addEventListener('mousedown', e => {
+      if (!imageLoaded) return;
+      const rect = imageCanvas.getBoundingClientRect();
+      const scaleX = imageCanvas.width / rect.width;
+      const scaleY = imageCanvas.height / rect.height;
+
+      cropStartX = (e.clientX - rect.left) * scaleX;
+      cropStartY = (e.clientY - rect.top) * scaleY;
+      cropEndX = cropStartX;
+      cropEndY = cropStartY;
+      isDragging = true;
+      redrawCanvasWithCropRect();
+    });
+
+    imageCanvas.addEventListener('mousemove', e => {
+      if (!isDragging) return;
+      const rect = imageCanvas.getBoundingClientRect();
+      const scaleX = imageCanvas.width / rect.width;
+      const scaleY = imageCanvas.height / rect.height;
+
+      cropEndX = (e.clientX - rect.left) * scaleX;
+      cropEndY = (e.clientY - rect.top) * scaleY;
+      redrawCanvasWithCropRect();
+    });
+
+    window.addEventListener('mouseup', () => {
+      isDragging = false;
+    });
+
+    clearImageBtn.addEventListener('click', () => {
+      imageFileInput.value = '';
+      resetImageCropper();
+    });
+
+    useCropBtn.addEventListener('click', () => {
+      if (!imageLoaded || cropStartX === null || cropEndX === null) {
+        alert('Select a crop area on the image first.');
+        return;
+      }
+
+      const x = Math.min(cropStartX, cropEndX);
+      const y = Math.min(cropStartY, cropEndY);
+      const size = Math.min(Math.abs(cropEndX - cropStartX), Math.abs(cropEndY - cropStartY));
+
+      if (size < 10) {
+        alert('Crop area is too small.');
+        return;
+      }
+
+      const croppedCanvas = document.createElement('canvas');
+      const croppedCtx = croppedCanvas.getContext('2d');
+      const finalSize = 512;
+      croppedCanvas.width = finalSize;
+      croppedCanvas.height = finalSize;
+
+      croppedCtx.drawImage(
+        imageCanvas,
+        x,
+        y,
+        size,
+        size,
+        0,
+        0,
+        finalSize,
+        finalSize
+      );
+
+      croppedCanvas.toBlob(blob => {
+        if (!blob) {
+          alert('Error creating cropped image.');
+          return;
+        }
+        croppedBlob = blob;
+        const previewUrl = URL.createObjectURL(blob);
+        croppedPreviewImg.src = previewUrl;
+        croppedPreviewImg.style.display = 'block';
+      }, 'image/png');
+    });
+
+    async function uploadCroppedImageIfAny() {
+      if (!croppedBlob) return null;
+
+      const fileName = `product-${Date.now()}.png`;
+
+      const { data, error } = await client.storage
+        .from(PRODUCT_IMAGE_BUCKET)
+        .upload(fileName, croppedBlob, {
+          contentType: 'image/png'
+        });
+
+      if (error) {
+        console.error('Error uploading image to storage:', error);
+        alert('Error uploading image.');
+        return null;
+      }
+
+      const { data: urlData } = client.storage
+        .from(PRODUCT_IMAGE_BUCKET)
+        .getPublicUrl(data.path);
+
+      return urlData.publicUrl;
+    }
+
+    // ----- Admin data -----
     async function loadProductsAdmin() {
       const { data, error } = await client
         .from('products')
@@ -535,12 +707,19 @@ if (isAdminPage) {
       const name = nameInput.value.trim();
       const priceAed = parseFloat(priceInput.value);
       const category = categoryInput.value.trim();
-      const imageUrl = imageUrlInput.value.trim();
       const description = descriptionInput.value.trim();
 
       if (!name || isNaN(priceAed)) {
         alert('Enter name and price.');
         return;
+      }
+
+      let imageUrl = null;
+      if (croppedBlob) {
+        imageUrl = await uploadCroppedImageIfAny();
+        if (!imageUrl) {
+          return;
+        }
       }
 
       const priceFils = Math.round(priceAed * 100);
@@ -552,8 +731,8 @@ if (isAdminPage) {
           price: priceFils,
           is_available: true,
           category: category || null,
-          image_url: imageUrl || null,
-          description: description || null
+          description: description || null,
+          image_url: imageUrl || null
         });
 
       if (error) {
@@ -565,8 +744,10 @@ if (isAdminPage) {
       nameInput.value = '';
       priceInput.value = '';
       categoryInput.value = '';
-      imageUrlInput.value = '';
       descriptionInput.value = '';
+      imageFileInput.value = '';
+      resetImageCropper();
+
       await loadProductsAdmin();
     }
 
