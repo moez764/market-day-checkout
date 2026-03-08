@@ -275,18 +275,71 @@
       margin-top: 2px;
     }
 
-    .btn-danger {
-      background: rgba(217, 83, 79, 0.1);
-      color: var(--danger);
-      border-radius: 999px;
-      border: 1px solid rgba(217, 83, 79, 0.4);
-      font-size: 11px;
-      padding: 4px 9px;
-      cursor: pointer;
+    /* Image cropper UI */
+
+    .image-upload-row {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
     }
 
-    .btn-danger:hover {
-      background: rgba(217, 83, 79, 0.18);
+    .cropper-wrapper {
+      margin-top: 6px;
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+      gap: 10px;
+    }
+
+    @media (max-width: 720px) {
+      .cropper-wrapper {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .canvas-container {
+      position: relative;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--border-soft);
+      background: #f5e5da;
+    }
+
+    #image-canvas {
+      width: 100%;
+      height: auto;
+      display: block;
+      cursor: crosshair;
+    }
+
+    .cropper-help {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .crop-preview-box {
+      border-radius: 12px;
+      border: 1px dashed var(--border-soft);
+      background: #fffaf6;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      align-items: center;
+      justify-content: center;
+      min-height: 160px;
+    }
+
+    #cropped-preview {
+      max-width: 100%;
+      border-radius: 10px;
+      display: none;
+    }
+
+    .crop-buttons {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 6px;
     }
   </style>
 
@@ -345,18 +398,6 @@
               placeholder="Drinks, Desserts…"
             />
           </div>
-
-          <div class="form-field">
-            <label for="product-image-url">Image link</label>
-            <input
-              id="product-image-url"
-              type="text"
-              placeholder="https://your-storage-url/image.png"
-            />
-            <small class="help-text">
-              Paste a direct image URL (Supabase Storage public URL or any public image link).
-            </small>
-          </div>
         </div>
 
         <div class="form-field">
@@ -368,7 +409,43 @@
           ></textarea>
         </div>
 
-        <button id="add-product-btn" class="btn primary">Add product</button>
+        <div class="form-field image-upload-row">
+          <label for="image-file">Product image</label>
+          <input id="image-file" type="file" accept="image/*" />
+          <small class="help-text">
+            Select an image, drag a square on the left to choose the crop, then click "Use cropped image".
+          </small>
+
+          <div class="cropper-wrapper">
+            <div>
+              <div class="canvas-container">
+                <canvas id="image-canvas" width="400" height="400"></canvas>
+              </div>
+              <p class="cropper-help">
+                Click and drag on the image to draw a square crop area.
+              </p>
+              <div class="crop-buttons">
+                <button id="clear-image-btn" type="button" class="btn btn-outline">
+                  Clear image
+                </button>
+              </div>
+            </div>
+
+            <div class="crop-preview-box">
+              <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">
+                Cropped preview
+              </div>
+              <img id="cropped-preview" alt="Cropped preview" />
+              <button id="use-crop-btn" type="button" class="btn primary">
+                Use cropped image
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <button id="add-product-btn" class="btn primary" style="margin-top: 10px;">
+          Add product
+        </button>
       </section>
 
       <!-- PRODUCT LIST -->
