@@ -15,7 +15,345 @@ function formatPrice(fils) {
 }
 
 // ---------- CUSTOMER PAGE ----------
-// (keep this exactly as I sent earlier – omitted here for brevity)
+if (isCustomerPage) {
+  const productListEl = document.getElementById('product-list');
+  const cartEl = document.getElementById('cart');
+  const totalEl = document.getElementById('total');
+  const placeOrderBtn = document.getElementById('place-order-btn');
+  const categoryPillsEl = document.getElementById('category-pills');
+
+  const orderModalOverlay = document.getElementById('order-modal-overlay');
+  const orderModalNumber = document.getElementById('order-modal-number');
+  const orderModalClose = document.getElementById('order-modal-close');
+
+  let products = [];
+  let cart = {};
+  let categories = [];
+  let selectedCategories = new Set();
+
+  function showOrderModal(orderId) {
+    orderModalNumber.textContent = `#${orderId}`;
+    orderModalOverlay.classList.remove('hidden');
+  }
+
+  function hideOrderModal() {
+    orderModalOverlay.classList.add('hidden');
+  }
+
+  if (orderModalClose && orderModalOverlay) {
+    orderModalClose.addEventListener('click', hideOrderModal);
+    orderModalOverlay.addEventListener('click', e => {
+      if (e.target === orderModalOverlay) hideOrderModal();
+    });
+  }
+
+  async function loadProducts() {
+    const { data, error } = await client
+      .from('products')
+      .select('*')
+      .order('id', { ascending: true });
+
+    console.log('Products from Supabase:', data, 'Error:', error);
+
+    if (error) {
+      productListEl.textContent = 'Error loading products.';
+      console.error('Error loading products:', error);
+      return;
+    }
+
+    products = data || [];
+
+    const catSet = new Set();
+    products.forEach(p => {
+      if (p.category && p.category.trim() !== '') {
+        catSet.add(p.category.trim());
+      }
+    });
+    categories = Array.from(catSet).sort((a, b) =>
+      a.toLowerCase().localeCompare(b.toLowerCase())
+    );
+
+    renderCategoryButtons();
+    renderProducts();
+  }
+
+  function renderCategoryButtons() {
+    if (!categoryPillsEl) return;
+
+    categoryPillsEl.innerHTML = '';
+
+    const allBtn = document.createElement('button');
+    allBtn.type = 'button';
+    allBtn.className = 'pill primary';
+    allBtn.textContent = 'All';
+    allBtn.onclick = () => {
+      selectedCategories.clear();
+      updateCategoryPillStyles();
+      renderProducts();
+    };
+    categoryPillsEl.appendChild(allBtn);
+
+    categories.forEach(cat => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'pill';
+      btn.textContent = cat;
+
+      btn.onclick = () => {
+        if (selectedCategories.has(cat)) {
+          selectedCategories.delete(cat);
+        } else {
+          selectedCategories.add(cat);
+        }
+        updateCategoryPillStyles();
+        renderProducts();
+      };
+
+      categoryPillsEl.appendChild(btn);
+    });
+
+    updateCategoryPillStyles();
+  }
+
+  function updateCategoryPillStyles() {
+    if (!categoryPillsEl) return;
+
+    const buttons = Array.from(categoryPillsEl.querySelectorAll('.pill'));
+    buttons.forEach(btn => {
+      const label = btn.textContent;
+      if (label === 'All') {
+        if (selectedCategories.size === 0) {
+          btn.classList.add('primary');
+        } else {
+          btn.classList.remove('primary');
+        }
+      } else {
+        if (selectedCategories.has(label)) {
+          btn.classList.add('primary');
+        } else {
+          btn.classList.remove('primary');
+        }
+      }
+    });
+  }
+
+  function renderProducts() {
+    const emojiFallback = '🍰';
+
+    productListEl.innerHTML = '';
+
+    let visibleProducts = products;
+    if (selectedCategories.size > 0) {
+      visibleProducts = products.filter(p => {
+        const cat = (p.category || '').trim();
+        return cat && selectedCategories.has(cat);
+      });
+    }
+
+    if (!visibleProducts || visibleProducts.length === 0) {
+      const empty = document.createElement('div');
+      empty.style.gridColumn = '1 / -1';
+      empty.style.textAlign = 'center';
+      empty.style.color = '#8a6a5c';
+      empty.textContent =
+        selectedCategories.size === 0
+          ? 'No products yet. Add some items in the admin panel.'
+          : 'No items in these categories.';
+      productListEl.appendChild(empty);
+      return;
+    }
+
+    visibleProducts.forEach(p => {
+      const card = document.createElement('div');
+      card.className = 'product-card';
+
+      const tag = document.createElement('div');
+      tag.className = 'product-tag';
+      tag.textContent = `#${p.id}`;
+
+      const imgWrap = document.createElement('div');
+      imgWrap.className = 'product-image-wrap';
+
+      const img = document.createElement('img');
+      img.className = 'product-image';
+      if (p.image_url) {
+        img.src = p.image_url;
+        img.alt = p.name || 'Product image';
+      } else {
+        img.style.display = 'none';
+      }
+
+      const emojiOverlay = document.createElement('div');
+      emojiOverlay.className = 'product-emoji-overlay';
+      emojiOverlay.textContent = emojiFallback;
+
+      imgWrap.appendChild(img);
+      imgWrap.appendChild(emojiOverlay);
+
+      const nameEl = document.createElement('div');
+      nameEl.className = 'product-name';
+      nameEl.textContent = p.name || 'Untitled item';
+
+      const descEl = document.createElement('div');
+      descEl.className = 'product-desc';
+      descEl.textContent =
+        (p.description && p.description.trim().length > 0)
+          ? p.description
+          : 'Sweet, chilled and perfect for market day.';
+
+      const bottom = document.createElement('div');
+      bottom.className = 'product-bottom';
+
+      const priceEl = document.createElement('div');
+      priceEl.className = 'product-price';
+      priceEl.innerHTML = `${formatPrice(p.price || 0)} <span>AED</span>`;
+
+      const btn = document.createElement('button');
+      btn.className = 'btn-add';
+      btn.type = 'button';
+      btn.textContent = 'Add';
+      btn.onclick = () => addToCart(p.id);
+
+      bottom.appendChild(priceEl);
+      bottom.appendChild(btn);
+
+      card.appendChild(tag);
+      card.appendChild(imgWrap);
+      card.appendChild(nameEl);
+      card.appendChild(descEl);
+      card.appendChild(bottom);
+
+      productListEl.appendChild(card);
+    });
+  }
+
+  function addToCart(productId) {
+    if (!cart[productId]) cart[productId] = 0;
+    cart[productId]++;
+    renderCart();
+  }
+
+  function renderCart() {
+    cartEl.innerHTML = '';
+
+    if (Object.keys(cart).length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'cart-empty';
+      empty.textContent = 'No items yet. Tap an item to add it.';
+      cartEl.appendChild(empty);
+      totalEl.textContent = '0.00';
+      return;
+    }
+
+    let total = 0;
+
+    Object.entries(cart).forEach(([pid, qty]) => {
+      const product = products.find(p => p.id == pid);
+      if (!product) return;
+      const lineTotal = (product.price || 0) * qty;
+      total += lineTotal;
+
+      const row = document.createElement('div');
+      row.className = 'cart-item';
+
+      const left = document.createElement('div');
+      left.className = 'cart-item-left';
+
+      const nameEl = document.createElement('div');
+      nameEl.className = 'cart-item-name';
+      nameEl.textContent = product.name;
+
+      const metaEl = document.createElement('div');
+      metaEl.className = 'cart-item-meta';
+      metaEl.textContent = `${qty} × ${formatPrice(product.price || 0)} AED`;
+
+      left.appendChild(nameEl);
+      left.appendChild(metaEl);
+
+      const right = document.createElement('div');
+      right.style.display = 'flex';
+      right.style.alignItems = 'center';
+      right.style.gap = '8px';
+
+      const priceEl = document.createElement('div');
+      priceEl.className = 'cart-item-price';
+      priceEl.textContent = `${formatPrice(lineTotal)} AED`;
+
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'cart-remove-btn';
+      removeBtn.textContent = '−';
+      removeBtn.onclick = () => {
+        if (!cart[pid]) return;
+        cart[pid]--;
+        if (cart[pid] <= 0) {
+          delete cart[pid];
+        }
+        renderCart();
+      };
+
+      right.appendChild(priceEl);
+      right.appendChild(removeBtn);
+
+      row.appendChild(left);
+      row.appendChild(right);
+
+      cartEl.appendChild(row);
+    });
+
+    totalEl.textContent = formatPrice(total);
+  }
+
+  async function placeOrder() {
+    if (Object.keys(cart).length === 0) {
+      alert('Cart is empty.');
+      return;
+    }
+
+    let total = 0;
+    Object.entries(cart).forEach(([pid, qty]) => {
+      const product = products.find(p => p.id == pid);
+      if (product) total += (product.price || 0) * qty;
+    });
+
+    const { data: order, error: orderError } = await client
+      .from('orders')
+      .insert({ total_price: total })
+      .select()
+      .single();
+
+    if (orderError) {
+      alert('Error placing order.');
+      console.error('Order insert error:', orderError);
+      return;
+    }
+
+    const orderId = order.id;
+
+    const items = Object.entries(cart).map(([pid, qty]) => ({
+      order_id: orderId,
+      product_id: Number(pid),
+      quantity: qty
+    }));
+
+    const { error: itemsError } = await client
+      .from('order_items')
+      .insert(items);
+
+    if (itemsError) {
+      alert('Error saving order items.');
+      console.error('Order items insert error:', itemsError);
+      return;
+    }
+
+    showOrderModal(orderId);
+    cart = {};
+    renderCart();
+  }
+
+  if (placeOrderBtn) placeOrderBtn.addEventListener('click', placeOrder);
+  if (productListEl) loadProducts();
+}
 
 // ---------- ADMIN PAGE ----------
 if (isAdminPage) {
@@ -53,7 +391,6 @@ if (isAdminPage) {
     const ordersListEl = document.getElementById('orders-list');
     const refreshOrdersBtn = document.getElementById('refresh-orders-btn');
 
-    // ----- Image cropper state -----
     const ctx = imageCanvas.getContext('2d');
     let originalImage = null;
     let imageLoaded = false;
