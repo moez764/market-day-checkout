@@ -27,7 +27,7 @@ if (isCustomerPage) {
   const orderModalClose = document.getElementById('order-modal-close');
 
   let products = [];
-  let cart = {};
+  let cart = []; // [{ lineId, productId, toppingIndex, quantity }]
   let categories = [];
   let selectedCategories = new Set();
 
@@ -212,7 +212,7 @@ if (isCustomerPage) {
       btn.className = 'btn-add';
       btn.type = 'button';
       btn.textContent = 'Add';
-      btn.onclick = () => addToCart(p.id);
+      btn.onclick = () => addToCart(p.id, null);
 
       bottom.appendChild(priceEl);
       bottom.appendChild(btn);
@@ -221,22 +221,51 @@ if (isCustomerPage) {
       card.appendChild(imgWrap);
       card.appendChild(nameEl);
       card.appendChild(descEl);
-      card.appendChild(bottom);
 
+      // Toppings under each product
+      if (Array.isArray(p.toppings) && p.toppings.length > 0) {
+        const toppingsEl = document.createElement('div');
+        toppingsEl.className = 'product-toppings';
+
+        p.toppings.forEach((t, idx) => {
+          const tBtn = document.createElement('button');
+          tBtn.type = 'button';
+          tBtn.className = 'pill'; // reuse pill style
+          tBtn.style.fontSize = '11px';
+          tBtn.textContent = `${t.name} +${formatPrice(t.price || 0)} AED`;
+          tBtn.onclick = () => addToCart(p.id, idx);
+          toppingsEl.appendChild(tBtn);
+        });
+
+        card.appendChild(toppingsEl);
+      }
+
+      card.appendChild(bottom);
       productListEl.appendChild(card);
     });
   }
 
-  function addToCart(productId) {
-    if (!cart[productId]) cart[productId] = 0;
-    cart[productId]++;
+  function addToCart(productId, toppingIndex = null) {
+    const existing = cart.find(
+      item => item.productId === productId && item.toppingIndex === toppingIndex
+    );
+    if (existing) {
+      existing.quantity += 1;
+    } else {
+      cart.push({
+        lineId: Date.now() + Math.random(),
+        productId,
+        toppingIndex,
+        quantity: 1
+      });
+    }
     renderCart();
   }
 
   function renderCart() {
     cartEl.innerHTML = '';
 
-    if (Object.keys(cart).length === 0) {
+    if (cart.length === 0) {
       const empty = document.createElement('div');
       empty.className = 'cart-empty';
       empty.textContent = 'No items yet. Tap an item to add it.';
@@ -247,10 +276,25 @@ if (isCustomerPage) {
 
     let total = 0;
 
-    Object.entries(cart).forEach(([pid, qty]) => {
-      const product = products.find(p => p.id == pid);
+    cart.forEach(item => {
+      const product = products.find(p => p.id === item.productId);
       if (!product) return;
-      const lineTotal = (product.price || 0) * qty;
+
+      const basePrice = product.price || 0;
+      let topping = null;
+      let toppingPrice = 0;
+
+      if (
+        item.toppingIndex != null &&
+        Array.isArray(product.toppings) &&
+        product.toppings[item.toppingIndex]
+      ) {
+        topping = product.toppings[item.toppingIndex];
+        toppingPrice = topping.price || 0;
+      }
+
+      const unitPrice = basePrice + toppingPrice;
+      const lineTotal = unitPrice * item.quantity;
       total += lineTotal;
 
       const row = document.createElement('div');
@@ -265,39 +309,54 @@ if (isCustomerPage) {
 
       const metaEl = document.createElement('div');
       metaEl.className = 'cart-item-meta';
-      metaEl.textContent = `${qty} × ${formatPrice(product.price || 0)} AED`;
+      metaEl.textContent = `${item.quantity} × ${formatPrice(unitPrice)} AED`;
 
       left.appendChild(nameEl);
       left.appendChild(metaEl);
 
+      if (topping) {
+        const toppingEl = document.createElement('div');
+        toppingEl.className = 'cart-item-meta';
+        toppingEl.textContent = `with ${topping.name}`;
+        left.appendChild(toppingEl);
+      }
+
       const right = document.createElement('div');
       right.style.display = 'flex';
       right.style.alignItems = 'center';
-      right.style.gap = '8px';
+      right.style.gap = '6px';
 
       const priceEl = document.createElement('div');
       priceEl.className = 'cart-item-price';
       priceEl.textContent = `${formatPrice(lineTotal)} AED`;
 
-      const removeBtn = document.createElement('button');
-      removeBtn.type = 'button';
-      removeBtn.className = 'cart-remove-btn';
-      removeBtn.textContent = '−';
-      removeBtn.onclick = () => {
-        if (!cart[pid]) return;
-        cart[pid]--;
-        if (cart[pid] <= 0) {
-          delete cart[pid];
+      const removeProductBtn = document.createElement('button');
+      removeProductBtn.type = 'button';
+      removeProductBtn.className = 'cart-remove-btn';
+      removeProductBtn.textContent = '−';
+      removeProductBtn.onclick = () => {
+        item.quantity -= 1;
+        if (item.quantity <= 0) {
+          cart = cart.filter(x => x.lineId !== item.lineId);
         }
         renderCart();
       };
 
+      const removeToppingBtn = document.createElement('button');
+      removeToppingBtn.type = 'button';
+      removeToppingBtn.className = 'cart-remove-btn';
+      removeToppingBtn.textContent = 'x';
+      removeToppingBtn.onclick = () => {
+        item.toppingIndex = null;
+        renderCart();
+      };
+
       right.appendChild(priceEl);
-      right.appendChild(removeBtn);
+      right.appendChild(removeProductBtn);
+      if (topping) right.appendChild(removeToppingBtn);
 
       row.appendChild(left);
       row.appendChild(right);
-
       cartEl.appendChild(row);
     });
 
@@ -305,15 +364,27 @@ if (isCustomerPage) {
   }
 
   async function placeOrder() {
-    if (Object.keys(cart).length === 0) {
+    if (cart.length === 0) {
       alert('Cart is empty.');
       return;
     }
 
     let total = 0;
-    Object.entries(cart).forEach(([pid, qty]) => {
-      const product = products.find(p => p.id == pid);
-      if (product) total += (product.price || 0) * qty;
+    cart.forEach(item => {
+      const product = products.find(p => p.id === item.productId);
+      if (!product) return;
+      const basePrice = product.price || 0;
+      let toppingPrice = 0;
+
+      if (
+        item.toppingIndex != null &&
+        Array.isArray(product.toppings) &&
+        product.toppings[item.toppingIndex]
+      ) {
+        toppingPrice = product.toppings[item.toppingIndex].price || 0;
+      }
+
+      total += (basePrice + toppingPrice) * item.quantity;
     });
 
     const { data: order, error: orderError } = await client
@@ -330,15 +401,32 @@ if (isCustomerPage) {
 
     const orderId = order.id;
 
-    const items = Object.entries(cart).map(([pid, qty]) => ({
-      order_id: orderId,
-      product_id: Number(pid),
-      quantity: qty
-    }));
+    const itemsPayload = cart.map(item => {
+      const product = products.find(p => p.id === item.productId);
+      let toppingName = null;
+      let toppingPrice = null;
+
+      if (
+        item.toppingIndex != null &&
+        Array.isArray(product.toppings) &&
+        product.toppings[item.toppingIndex]
+      ) {
+        toppingName = product.toppings[item.toppingIndex].name || null;
+        toppingPrice = product.toppings[item.toppingIndex].price || 0;
+      }
+
+      return {
+        order_id: orderId,
+        product_id: item.productId,
+        quantity: item.quantity,
+        topping_name: toppingName,
+        topping_price: toppingPrice
+      };
+    });
 
     const { error: itemsError } = await client
       .from('order_items')
-      .insert(items);
+      .insert(itemsPayload);
 
     if (itemsError) {
       alert('Error saving order items.');
@@ -347,7 +435,7 @@ if (isCustomerPage) {
     }
 
     showOrderModal(orderId);
-    cart = {};
+    cart = [];
     renderCart();
   }
 
@@ -380,6 +468,12 @@ if (isAdminPage) {
     const categoryInput = document.getElementById('product-category');
     const descriptionInput = document.getElementById('product-description');
 
+    const toppingNameInput = document.getElementById('topping-name');
+    const toppingPriceInput = document.getElementById('topping-price');
+    const addToppingBtn = document.getElementById('add-topping-btn');
+    const toppingsListEl = document.getElementById('toppings-list');
+    let currentToppings = [];
+
     const imageFileInput = document.getElementById('image-file');
     const imageCanvas = document.getElementById('image-canvas');
     const clearImageBtn = document.getElementById('clear-image-btn');
@@ -391,6 +485,45 @@ if (isAdminPage) {
     const ordersListEl = document.getElementById('orders-list');
     const refreshOrdersBtn = document.getElementById('refresh-orders-btn');
 
+    // ----- Toppings UI -----
+    function renderToppingsChips() {
+      toppingsListEl.innerHTML = '';
+      currentToppings.forEach((t, idx) => {
+        const chip = document.createElement('div');
+        chip.className = 'topping-chip';
+        chip.textContent = `${t.name} +${formatPrice(t.price)} AED`;
+
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.textContent = 'x';
+        removeBtn.onclick = () => {
+          currentToppings.splice(idx, 1);
+          renderToppingsChips();
+        };
+
+        chip.appendChild(removeBtn);
+        toppingsListEl.appendChild(chip);
+      });
+    }
+
+    addToppingBtn.addEventListener('click', () => {
+      const tName = toppingNameInput.value.trim();
+      const tPriceAed = parseFloat(toppingPriceInput.value);
+
+      if (!tName || isNaN(tPriceAed)) {
+        alert('Enter topping name and price.');
+        return;
+      }
+
+      const tPriceFils = Math.round(tPriceAed * 100);
+      currentToppings.push({ name: tName, price: tPriceFils });
+
+      toppingNameInput.value = '';
+      toppingPriceInput.value = '';
+      renderToppingsChips();
+    });
+
+    // ----- Image cropper state -----
     const ctx = imageCanvas.getContext('2d');
     let originalImage = null;
     let imageLoaded = false;
@@ -649,7 +782,17 @@ if (isAdminPage) {
     async function loadOrders() {
       const { data, error } = await client
         .from('orders')
-        .select('id, created_at, total_price, order_items ( quantity, products ( name ))')
+        .select(`
+          id,
+          created_at,
+          total_price,
+          order_items (
+            quantity,
+            topping_name,
+            topping_price,
+            products ( name )
+          )
+        `)
         .order('id', { ascending: false });
 
       if (error) {
@@ -691,8 +834,12 @@ if (isAdminPage) {
         const itemsUl = document.createElement('ul');
         itemsUl.className = 'order-items';
         (order.order_items || []).forEach(oi => {
+          const baseName = oi.products?.name || 'Item';
+          const toppingSuffix = oi.topping_name
+            ? ` (with ${oi.topping_name})`
+            : '';
           const li = document.createElement('li');
-          li.textContent = `${oi.products.name} × ${oi.quantity}`;
+          li.textContent = `${baseName}${toppingSuffix} × ${oi.quantity}`;
           itemsUl.appendChild(li);
         });
 
@@ -731,7 +878,8 @@ if (isAdminPage) {
           is_available: true,
           category: category || null,
           description: description || null,
-          image_url: imageUrl || null
+          image_url: imageUrl || null,
+          toppings: currentToppings.length > 0 ? currentToppings : null
         });
 
       if (error) {
@@ -746,6 +894,8 @@ if (isAdminPage) {
       descriptionInput.value = '';
       imageFileInput.value = '';
       resetImageCropper();
+      currentToppings = [];
+      renderToppingsChips();
 
       await loadProductsAdmin();
     }
