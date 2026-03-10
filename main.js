@@ -445,7 +445,7 @@ if (isCustomerPage) {
 
 // ---------- ADMIN PAGE ----------
 if (isAdminPage) {
-  const ADMIN_PASSWORD = 'admin12345';
+  const ADMIN_PASSWORD = 'change_me_before_market_day';
 
   const lockedDiv = document.getElementById('locked');
   const contentDiv = document.getElementById('admin-content');
@@ -523,7 +523,7 @@ if (isAdminPage) {
       renderToppingsChips();
     });
 
-    // ----- Image cropper state -----
+    // ----- Image cropper state (FREE-FORM RECTANGLE) -----
     const ctx = imageCanvas.getContext('2d');
     let originalImage = null;
     let imageLoaded = false;
@@ -571,14 +571,18 @@ if (isAdminPage) {
       ctx.clearRect(0, 0, imageCanvas.width, imageCanvas.height);
       ctx.drawImage(originalImage, 0, 0, imageCanvas.width, imageCanvas.height);
 
-      if (cropStartX !== null && cropStartY !== null && cropEndX !== null && cropEndY !== null) {
+      if (
+        cropStartX !== null && cropStartY !== null &&
+        cropEndX !== null && cropEndY !== null
+      ) {
         const x = Math.min(cropStartX, cropEndX);
         const y = Math.min(cropStartY, cropEndY);
-        const size = Math.min(Math.abs(cropEndX - cropStartX), Math.abs(cropEndY - cropStartY));
+        const w = Math.abs(cropEndX - cropStartX);
+        const h = Math.abs(cropEndY - cropStartY);
 
         ctx.strokeStyle = 'rgba(255, 0, 0, 0.9)';
         ctx.lineWidth = 2;
-        ctx.strokeRect(x, y, size, size);
+        ctx.strokeRect(x, y, w, h);
       }
     }
 
@@ -617,36 +621,43 @@ if (isAdminPage) {
     });
 
     useCropBtn.addEventListener('click', () => {
-      if (!imageLoaded || cropStartX === null || cropEndX === null) {
+      if (!imageLoaded || cropStartX === null || cropEndX === null || cropStartY === null || cropEndY === null) {
         alert('Select a crop area on the image first.');
         return;
       }
 
       const x = Math.min(cropStartX, cropEndX);
       const y = Math.min(cropStartY, cropEndY);
-      const size = Math.min(Math.abs(cropEndX - cropStartX), Math.abs(cropEndY - cropStartY));
+      const w = Math.abs(cropEndX - cropStartX);
+      const h = Math.abs(cropEndY - cropStartY);
 
-      if (size < 10) {
+      if (w < 10 || h < 10) {
         alert('Crop area is too small.');
         return;
       }
 
       const croppedCanvas = document.createElement('canvas');
       const croppedCtx = croppedCanvas.getContext('2d');
-      const finalSize = 512;
-      croppedCanvas.width = finalSize;
-      croppedCanvas.height = finalSize;
+
+      // Scale so longest side <= 512
+      const maxSize = 512;
+      const scale = Math.min(maxSize / w, maxSize / h, 1);
+      const outW = Math.round(w * scale);
+      const outH = Math.round(h * scale);
+
+      croppedCanvas.width = outW;
+      croppedCanvas.height = outH;
 
       croppedCtx.drawImage(
         imageCanvas,
         x,
         y,
-        size,
-        size,
+        w,
+        h,
         0,
         0,
-        finalSize,
-        finalSize
+        outW,
+        outH
       );
 
       croppedCanvas.toBlob(blob => {
