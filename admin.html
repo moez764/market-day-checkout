@@ -275,7 +275,49 @@
       margin-top: 2px;
     }
 
-    /* Image cropper UI */
+    .btn-danger {
+      background: rgba(217, 83, 79, 0.1);
+      color: var(--danger);
+      border-radius: 999px;
+      border: 1px solid rgba(217, 83, 79, 0.4);
+      font-size: 11px;
+      padding: 4px 9px;
+      cursor: pointer;
+    }
+
+    .btn-danger:hover {
+      background: rgba(217, 83, 79, 0.18);
+    }
+
+    /* Toppings list */
+    .toppings-chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .topping-chip {
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(185, 110, 75, 0.08);
+      font-size: 11px;
+      color: var(--text-main);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .topping-chip button {
+      border: none;
+      background: transparent;
+      color: var(--danger);
+      cursor: pointer;
+      font-size: 11px;
+      padding: 0;
+    }
+
+    /* Image cropper UI (same as before) */
 
     .image-upload-row {
       display: flex;
@@ -343,7 +385,7 @@
     }
   </style>
 
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script defer src="main.js"></script>
 </head>
 <body class="admin-body">
@@ -366,7 +408,7 @@
     <div class="admin-panel" id="admin-content" style="display:none">
       <header class="admin-header">
         <h1>Admin – Market Day</h1>
-        <p>Manage products, prices, images, descriptions, and track incoming orders.</p>
+        <p>Manage products, prices, images, descriptions, toppings, and orders.</p>
       </header>
 
       <!-- ADD PRODUCT -->
@@ -409,7 +451,38 @@
           ></textarea>
         </div>
 
-        <div class="form-field image-upload-row">
+        <!-- Toppings builder -->
+        <div class="form-field">
+          <label>Available toppings</label>
+          <div class="form-grid">
+            <div class="form-field">
+              <input
+                id="topping-name"
+                type="text"
+                placeholder="Oreo crumble"
+              />
+            </div>
+            <div class="form-field">
+              <input
+                id="topping-price"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="1.50"
+              />
+            </div>
+          </div>
+          <button id="add-topping-btn" type="button" class="btn btn-outline">
+            Add topping
+          </button>
+          <small class="help-text">
+            Toppings are extra options for this product. Prices are added on top of the base price.
+          </small>
+          <div id="toppings-list" class="toppings-chip-row"></div>
+        </div>
+
+        <!-- Image upload + crop (same as before) -->
+        <div class="form-field image-upload-row" style="margin-top: 10px;">
           <label for="image-file">Product image</label>
           <input id="image-file" type="file" accept="image/*" />
           <small class="help-text">
