@@ -34,8 +34,6 @@ if (isCustomerPage) {
   const discountAmountInput = document.getElementById('discount-amount');
 
   let products = [];
-  // Cart line supports multiple toppings:
-  // { lineId, productId, toppingIndexes: number[], quantity }
   let cart = [];
   let categories = [];
   let selectedCategories = new Set();
@@ -646,7 +644,7 @@ if (isAdminPage) {
       renderToppingsChips();
     });
 
-    // ----- Image cropper state -----
+    // ----- Image cropper -----
     const ctx = imageCanvas.getContext('2d');
     let originalImage = null;
     let imageLoaded = false;
@@ -973,11 +971,36 @@ if (isAdminPage) {
 
       if (!data || data.length === 0) {
         ordersListEl.textContent = 'No orders yet for this filter.';
-        bannerNetRevenueEl.textContent = '0.00 AED';
-        bannerGrossSalesEl.textContent = '0.00 AED';
-        bannerDiscountEl.textContent = '0.00 AED';
-        bannerPendingCountEl.textContent = '0';
-        bannerCompletedCountEl.textContent = '0';
+        // update banners anyway from all orders
+        const { data: allOrders } = await client
+          .from('orders')
+          .select('total_price, subtotal_price, discount_amount, status');
+        if (allOrders) {
+          let gross = 0;
+          let totalDiscount = 0;
+          let net = 0;
+          let pendingCount = 0;
+          let completedCount = 0;
+
+          allOrders.forEach(order => {
+            const subtotal = order.subtotal_price ?? order.total_price ?? 0;
+            const discount = order.discount_amount ?? 0;
+            const total = order.total_price ?? 0;
+
+            gross += subtotal;
+            totalDiscount += discount;
+            net += total;
+
+            if (order.status === 'pending') pendingCount += 1;
+            if (order.status === 'completed') completedCount += 1;
+          });
+
+          bannerNetRevenueEl.textContent = `${formatPrice(net)} AED`;
+          bannerGrossSalesEl.textContent = `${formatPrice(gross)} AED`;
+          bannerDiscountEl.textContent = `${formatPrice(totalDiscount)} AED`;
+          bannerPendingCountEl.textContent = String(pendingCount);
+          bannerCompletedCountEl.textContent = String(completedCount);
+        }
         return;
       }
 
@@ -1071,18 +1094,22 @@ if (isAdminPage) {
         if (s === 'completed') statusPill.classList.add('completed');
         if (s === 'cancelled') statusPill.classList.add('cancelled');
 
-        const statusSelect = document.createElement('select');
-        statusSelect.className = 'order-status-select';
-        ['pending', 'completed', 'cancelled'].forEach(optionValue => {
-          const opt = document.createElement('option');
-          opt.value = optionValue;
-          opt.textContent = optionValue.charAt(0).toUpperCase() + optionValue.slice(1);
-          if (optionValue === s) opt.selected = true;
-          statusSelect.appendChild(opt);
-        });
+        const servedRow = document.createElement('label');
+        servedRow.className = 'served-checkbox-row';
 
-        statusSelect.addEventListener('change', async () => {
-          const newStatus = statusSelect.value;
+        const servedCheckbox = document.createElement('input');
+        servedCheckbox.type = 'checkbox';
+        servedCheckbox.checked = (s === 'completed');
+
+        const servedText = document.createElement('span');
+        servedText.textContent = 'Served';
+
+        servedRow.appendChild(servedCheckbox);
+        servedRow.appendChild(servedText);
+
+        servedCheckbox.addEventListener('change', async () => {
+          const newStatus = servedCheckbox.checked ? 'completed' : 'pending';
+
           const { error } = await client
             .from('orders')
             .update({ status: newStatus })
@@ -1091,23 +1118,21 @@ if (isAdminPage) {
           if (error) {
             alert('Error updating status, see console.');
             console.error('Update order status error:', error);
-            statusSelect.value = s; // revert on error
+            servedCheckbox.checked = !servedCheckbox.checked; // revert
             return;
           }
 
-          // update pill text/class
           statusPill.textContent = newStatus.toUpperCase();
           statusPill.className = 'status-pill';
           if (newStatus === 'pending') statusPill.classList.add('pending');
           if (newStatus === 'completed') statusPill.classList.add('completed');
           if (newStatus === 'cancelled') statusPill.classList.add('cancelled');
 
-          // reload banners to reflect counts
-          await loadOrders();
+          await loadOrders(); // refresh banners and filter view
         });
 
         footerRow.appendChild(statusPill);
-        footerRow.appendChild(statusSelect);
+        footerRow.appendChild(servedRow);
 
         orderDiv.appendChild(header);
         orderDiv.appendChild(itemsUl);
