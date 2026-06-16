@@ -15,6 +15,7 @@
       --text-muted: #8a6a5c;
       --border-soft: #e0cfc3;
       --danger: #d9534f;
+      --success: #2e8b57;
     }
 
     * {
@@ -36,7 +37,10 @@
 
     .admin-wrap {
       width: 100%;
-      max-width: 960px;
+      max-width: 1040px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
     }
 
     .locked-screen,
@@ -51,11 +55,13 @@
 
     .admin-header {
       margin-bottom: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
     }
 
     .admin-header h1 {
       font-size: 24px;
-      margin-bottom: 4px;
     }
 
     .admin-header p {
@@ -115,7 +121,8 @@
     input[type="text"],
     input[type="number"],
     input[type="password"],
-    textarea {
+    textarea,
+    select {
       border-radius: 10px;
       border: 1px solid var(--border-soft);
       padding: 8px 10px;
@@ -127,7 +134,8 @@
     }
 
     input:focus,
-    textarea:focus {
+    textarea:focus,
+    select:focus {
       border-color: var(--accent);
       box-shadow: 0 0 0 2px rgba(185, 110, 75, 0.18);
     }
@@ -190,6 +198,50 @@
       margin-bottom: 16px;
     }
 
+    /* Dashboard banners */
+    .dashboard-banner-row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    @media (min-width: 880px) {
+      .dashboard-banner-row {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+    }
+
+    .dashboard-card {
+      border-radius: 14px;
+      padding: 10px 11px;
+      background: linear-gradient(135deg, #fffdf9, #ffe5d2);
+      border: 1px solid rgba(255, 255, 255, 0.9);
+      box-shadow: 0 8px 20px rgba(186, 127, 98, 0.15);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .dashboard-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .dashboard-value {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .dashboard-subvalue {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* Lists */
     .list-column {
       display: flex;
       flex-direction: column;
@@ -227,6 +279,16 @@
       color: var(--text-muted);
     }
 
+    .product-stock {
+      font-size: 12px;
+      color: var(--success);
+    }
+
+    .product-stock.low {
+      color: var(--danger);
+      font-weight: 600;
+    }
+
     .product-price {
       font-size: 13px;
       font-weight: 600;
@@ -239,6 +301,9 @@
       background: rgba(255, 255, 255, 0.95);
       padding: 8px 9px 9px;
       box-shadow: 0 5px 14px rgba(0, 0, 0, 0.08);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
     }
 
     .order-header {
@@ -246,7 +311,7 @@
       align-items: center;
       justify-content: space-between;
       gap: 6px;
-      margin-bottom: 5px;
+      margin-bottom: 4px;
     }
 
     .order-id {
@@ -275,31 +340,40 @@
       margin-top: 2px;
     }
 
-    .toppings-chip-row {
+    .order-footer-row {
       display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      margin-top: 6px;
-    }
-
-    .topping-chip {
-      padding: 4px 8px;
-      border-radius: 999px;
-      background: rgba(185, 110, 75, 0.08);
-      font-size: 11px;
-      color: var(--text-main);
-      display: inline-flex;
       align-items: center;
-      gap: 6px;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 4px;
     }
 
-    .topping-chip button {
-      border: none;
-      background: transparent;
-      color: var(--danger);
-      cursor: pointer;
+    .order-status-select {
       font-size: 11px;
-      padding: 0;
+      padding: 4px 8px;
+    }
+
+    .status-pill {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .status-pill.pending {
+      background: rgba(255, 193, 7, 0.15);
+      color: #b8860b;
+    }
+
+    .status-pill.completed {
+      background: rgba(46, 139, 87, 0.16);
+      color: #2e8b57;
+    }
+
+    .status-pill.cancelled {
+      background: rgba(217, 83, 79, 0.15);
+      color: #d9534f;
     }
 
     .image-upload-row {
@@ -367,17 +441,19 @@
       margin-top: 6px;
     }
 
-    .orders-summary {
-      font-size: 13px;
-      color: var(--text-muted);
+    .orders-filters-row {
       display: flex;
-      flex-direction: column;
-      gap: 2px;
-      margin-bottom: 6px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
     }
 
-    .orders-summary strong {
-      color: var(--accent);
+    .orders-filter-select {
+      font-size: 12px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border-soft);
+      background: rgba(255, 255, 255, 0.9);
     }
   </style>
 
@@ -387,9 +463,10 @@
 <body class="admin-body">
   <div class="admin-wrap">
 
+    <!-- LOCK SCREEN -->
     <div id="locked" class="locked-screen">
       <h1>Admin login</h1>
-      <p>Enter the admin password to manage products and view orders.</p>
+      <p>Enter the admin password to manage products, stock and orders.</p>
       <div class="form-grid">
         <div class="form-field">
           <label for="admin-pass">Password</label>
@@ -399,12 +476,41 @@
       <button id="unlock-btn" class="btn primary">Unlock</button>
     </div>
 
+    <!-- ADMIN CONTENT -->
     <div class="admin-panel" id="admin-content" style="display:none">
       <header class="admin-header">
-        <h1>Admin – Market Day</h1>
-        <p>Customize products, images, toppings and see orders with discounts and income.</p>
+        <h1>Market Day Dashboard</h1>
+        <p>See revenue, stock and track orders from one screen.</p>
       </header>
 
+      <!-- DASHBOARD BANNERS -->
+      <section class="dashboard-banner-row">
+        <div class="dashboard-card">
+          <div class="dashboard-label">Net revenue</div>
+          <div class="dashboard-value" id="banner-net-revenue">0.00 AED</div>
+          <div class="dashboard-subvalue">After discount</div>
+        </div>
+        <div class="dashboard-card">
+          <div class="dashboard-label">Gross sales</div>
+          <div class="dashboard-value" id="banner-gross-sales">0.00 AED</div>
+          <div class="dashboard-subvalue">Before discount</div>
+        </div>
+        <div class="dashboard-card">
+          <div class="dashboard-label">Discount given</div>
+          <div class="dashboard-value" id="banner-discount">0.00 AED</div>
+          <div class="dashboard-subvalue">Total across all orders</div>
+        </div>
+        <div class="dashboard-card">
+          <div class="dashboard-label">Stock remaining</div>
+          <div class="dashboard-value" id="banner-stock-remaining">0</div>
+          <div class="dashboard-subvalue">
+            Pending: <span id="banner-pending-count">0</span> · Completed:
+            <span id="banner-completed-count">0</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ADD PRODUCT -->
       <section class="card">
         <h2>Add product</h2>
 
@@ -433,6 +539,20 @@
               placeholder="Drinks, Desserts…"
             />
           </div>
+
+          <div class="form-field">
+            <label for="product-stock-initial">Initial stock (units)</label>
+            <input
+              id="product-stock-initial"
+              type="number"
+              min="0"
+              step="1"
+              placeholder="e.g. 30"
+            />
+            <small class="help-text">
+              For example, if you have 30 brownies ready at the start.
+            </small>
+          </div>
         </div>
 
         <div class="form-field">
@@ -444,6 +564,7 @@
           ></textarea>
         </div>
 
+        <!-- Toppings builder -->
         <div class="form-field">
           <label>Available toppings</label>
           <div class="form-grid">
@@ -473,6 +594,7 @@
           <div id="toppings-list" class="toppings-chip-row"></div>
         </div>
 
+        <!-- Image upload + crop -->
         <div class="form-field image-upload-row" style="margin-top: 10px;">
           <label for="image-file">Product image</label>
           <input id="image-file" type="file" accept="image/*" />
@@ -512,6 +634,7 @@
         </button>
       </section>
 
+      <!-- PRODUCT LIST -->
       <section class="card">
         <div class="card-header-row">
           <h2>Products</h2>
@@ -519,19 +642,21 @@
         <div id="admin-product-list" class="list-column"></div>
       </section>
 
+      <!-- ORDERS -->
       <section class="card">
         <div class="card-header-row">
           <h2>Orders</h2>
-          <button id="refresh-orders-btn" class="btn btn-outline">
-            Refresh
-          </button>
-        </div>
-
-        <div class="orders-summary">
-          <div>Orders: <strong id="orders-count">0</strong></div>
-          <div>Subtotal (before discount): <strong id="orders-gross">0.00 AED</strong></div>
-          <div>Discount given: <strong id="orders-discount">0.00 AED</strong></div>
-          <div>Net income (after discount): <strong id="orders-net">0.00 AED</strong></div>
+          <div class="orders-filters-row">
+            <select id="orders-status-filter" class="orders-filter-select">
+              <option value="all">All statuses</option>
+              <option value="pending">Pending</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+            <button id="refresh-orders-btn" class="btn btn-outline">
+              Refresh
+            </button>
+          </div>
         </div>
 
         <div id="orders-list" class="list-column"></div>
