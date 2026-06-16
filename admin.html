@@ -317,7 +317,7 @@
       padding: 0;
     }
 
-    /* Image cropper UI (same as before) */
+    /* Image cropper UI */
 
     .image-upload-row {
       display: flex;
@@ -383,6 +383,19 @@
       flex-wrap: wrap;
       margin-top: 6px;
     }
+
+    /* NEW: summary row for income */
+    .orders-summary {
+      font-size: 13px;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .orders-summary strong {
+      color: var(--accent);
+    }
   </style>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -408,7 +421,7 @@
     <div class="admin-panel" id="admin-content" style="display:none">
       <header class="admin-header">
         <h1>Admin – Market Day</h1>
-        <p>Manage products, prices, images, descriptions, toppings, and orders.</p>
+        <p>Customize products, images, toppings and see orders with income.</p>
       </header>
 
       <!-- ADD PRODUCT -->
@@ -481,7 +494,7 @@
           <div id="toppings-list" class="toppings-chip-row"></div>
         </div>
 
-        <!-- Image upload + crop (same as before) -->
+        <!-- Image upload + crop -->
         <div class="form-field image-upload-row" style="margin-top: 10px;">
           <label for="image-file">Product image</label>
           <input id="image-file" type="file" accept="image/*" />
@@ -539,6 +552,13 @@
             Refresh
           </button>
         </div>
+
+        <!-- NEW: gross income summary -->
+        <div class="orders-summary">
+          <div>Total orders: <strong id="orders-count">0</strong></div>
+          <div>Gross income: <strong id="orders-gross">0.00 AED</strong></div>
+        </div>
+
         <div id="orders-list" class="list-column">
           <!-- Filled by main.js -->
         </div>
