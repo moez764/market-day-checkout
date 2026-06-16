@@ -348,11 +348,6 @@
       margin-top: 4px;
     }
 
-    .order-status-select {
-      font-size: 11px;
-      padding: 4px 8px;
-    }
-
     .status-pill {
       font-size: 11px;
       padding: 3px 8px;
@@ -374,6 +369,14 @@
     .status-pill.cancelled {
       background: rgba(217, 83, 79, 0.15);
       color: #d9534f;
+    }
+
+    .served-checkbox-row {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      color: var(--text-muted);
     }
 
     .image-upload-row {
@@ -648,10 +651,9 @@
           <h2>Orders</h2>
           <div class="orders-filters-row">
             <select id="orders-status-filter" class="orders-filter-select">
-              <option value="all">All statuses</option>
-              <option value="pending">Pending</option>
-              <option value="completed">Completed</option>
-              <option value="cancelled">Cancelled</option>
+              <option value="all">All orders</option>
+              <option value="pending">Not served (pending)</option>
+              <option value="completed">Served (completed)</option>
             </select>
             <button id="refresh-orders-btn" class="btn btn-outline">
               Refresh
