@@ -63,7 +63,9 @@ if (isCustomerPage) {
       .order('id', { ascending: true });
 
     if (error) {
-      productListEl.textContent = 'Error loading products.';
+      if (productListEl) {
+        productListEl.textContent = 'Error loading products.';
+      }
       console.error('Error loading products:', error);
       return;
     }
@@ -147,6 +149,7 @@ if (isCustomerPage) {
   function renderProducts() {
     const emojiFallback = '🍰';
 
+    if (!productListEl) return;
     productListEl.innerHTML = '';
 
     let visibleProducts = products;
@@ -334,6 +337,7 @@ if (isCustomerPage) {
   }
 
   function renderCart() {
+    if (!cartEl) return;
     cartEl.innerHTML = '';
 
     if (cart.length === 0) {
@@ -465,7 +469,6 @@ if (isCustomerPage) {
       return;
     }
 
-    // Subtotal and discount in fils
     let subtotalFils = 0;
     cart.forEach(item => {
       const product = products.find(p => p.id === item.productId);
@@ -491,7 +494,8 @@ if (isCustomerPage) {
         subtotal_price: subtotalFils,
         discount_amount: discountFils,
         customer_name: customerName,
-        payment_method: paymentMethod
+        payment_method: paymentMethod,
+        status: 'pending'
       })
       .select()
       .single();
@@ -577,6 +581,7 @@ if (isAdminPage) {
     const priceInput = document.getElementById('product-price');
     const categoryInput = document.getElementById('product-category');
     const descriptionInput = document.getElementById('product-description');
+    const stockInitialInput = document.getElementById('product-stock-initial');
 
     const toppingNameInput = document.getElementById('topping-name');
     const toppingPriceInput = document.getElementById('topping-price');
@@ -594,11 +599,16 @@ if (isAdminPage) {
     const adminProductListEl = document.getElementById('admin-product-list');
     const ordersListEl = document.getElementById('orders-list');
     const refreshOrdersBtn = document.getElementById('refresh-orders-btn');
-    const ordersCountEl = document.getElementById('orders-count');
-    const ordersGrossEl = document.getElementById('orders-gross');
-    const ordersDiscountEl = document.getElementById('orders-discount');
-    const ordersNetEl = document.getElementById('orders-net');
+    const ordersStatusFilterEl = document.getElementById('orders-status-filter');
 
+    const bannerNetRevenueEl = document.getElementById('banner-net-revenue');
+    const bannerGrossSalesEl = document.getElementById('banner-gross-sales');
+    const bannerDiscountEl = document.getElementById('banner-discount');
+    const bannerStockRemainingEl = document.getElementById('banner-stock-remaining');
+    const bannerPendingCountEl = document.getElementById('banner-pending-count');
+    const bannerCompletedCountEl = document.getElementById('banner-completed-count');
+
+    // ----- Toppings UI -----
     function renderToppingsChips() {
       toppingsListEl.innerHTML = '';
       currentToppings.forEach((t, idx) => {
@@ -636,6 +646,7 @@ if (isAdminPage) {
       renderToppingsChips();
     });
 
+    // ----- Image cropper state -----
     const ctx = imageCanvas.getContext('2d');
     let originalImage = null;
     let imageLoaded = false;
@@ -823,8 +834,11 @@ if (isAdminPage) {
 
       if (!data || data.length === 0) {
         adminProductListEl.textContent = 'No products yet. Add your first item above.';
+        bannerStockRemainingEl.textContent = '0';
         return;
       }
+
+      let totalStock = 0;
 
       data.forEach(p => {
         const row = document.createElement('div');
@@ -842,8 +856,25 @@ if (isAdminPage) {
         const catText = p.category ? ` · ${p.category}` : '';
         extraEl.textContent = `#${p.id}${catText}`;
 
+        const stockEl = document.createElement('div');
+        stockEl.className = 'product-stock';
+        const currentStock = p.current_stock ?? 0;
+        const initialStock = p.initial_stock ?? 0;
+        totalStock += currentStock;
+
+        if (currentStock <= 5) {
+          stockEl.classList.add('low');
+        }
+
+        if (initialStock > 0) {
+          stockEl.textContent = `${currentStock} left (out of ${initialStock})`;
+        } else {
+          stockEl.textContent = `${currentStock} in stock`;
+        }
+
         meta.appendChild(nameEl);
         meta.appendChild(extraEl);
+        meta.appendChild(stockEl);
 
         const right = document.createElement('div');
         right.style.display = 'flex';
@@ -899,10 +930,14 @@ if (isAdminPage) {
 
         adminProductListEl.appendChild(row);
       });
+
+      bannerStockRemainingEl.textContent = String(totalStock);
     }
 
     async function loadOrders() {
-      const { data, error } = await client
+      const filterStatus = ordersStatusFilterEl.value;
+
+      let query = client
         .from('orders')
         .select(`
           id,
@@ -912,6 +947,7 @@ if (isAdminPage) {
           discount_amount,
           customer_name,
           payment_method,
+          status,
           order_items (
             quantity,
             topping_name,
@@ -920,6 +956,12 @@ if (isAdminPage) {
           )
         `)
         .order('id', { ascending: false });
+
+      if (filterStatus !== 'all') {
+        query = query.eq('status', filterStatus);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         ordersListEl.textContent = 'Error loading orders.';
@@ -930,26 +972,46 @@ if (isAdminPage) {
       ordersListEl.innerHTML = '';
 
       if (!data || data.length === 0) {
-        ordersListEl.textContent = 'No orders yet.';
-        ordersCountEl.textContent = '0';
-        ordersGrossEl.textContent = '0.00 AED';
-        ordersDiscountEl.textContent = '0.00 AED';
-        ordersNetEl.textContent = '0.00 AED';
+        ordersListEl.textContent = 'No orders yet for this filter.';
+        bannerNetRevenueEl.textContent = '0.00 AED';
+        bannerGrossSalesEl.textContent = '0.00 AED';
+        bannerDiscountEl.textContent = '0.00 AED';
+        bannerPendingCountEl.textContent = '0';
+        bannerCompletedCountEl.textContent = '0';
         return;
       }
 
-      let gross = 0;
-      let totalDiscount = 0;
-      data.forEach(order => {
-        gross += order.subtotal_price || order.total_price || 0;
-        totalDiscount += order.discount_amount || 0;
-      });
-      const net = gross - totalDiscount;
+      // Compute banners across ALL orders (not just filtered)
+      const { data: allOrders, error: allOrdersError } = await client
+        .from('orders')
+        .select('total_price, subtotal_price, discount_amount, status');
 
-      ordersCountEl.textContent = String(data.length);
-      ordersGrossEl.textContent = `${formatPrice(gross)} AED`;
-      ordersDiscountEl.textContent = `${formatPrice(totalDiscount)} AED`;
-      ordersNetEl.textContent = `${formatPrice(net)} AED`;
+      if (!allOrdersError && allOrders) {
+        let gross = 0;
+        let totalDiscount = 0;
+        let net = 0;
+        let pendingCount = 0;
+        let completedCount = 0;
+
+        allOrders.forEach(order => {
+          const subtotal = order.subtotal_price ?? order.total_price ?? 0;
+          const discount = order.discount_amount ?? 0;
+          const total = order.total_price ?? 0;
+
+          gross += subtotal;
+          totalDiscount += discount;
+          net += total;
+
+          if (order.status === 'pending') pendingCount += 1;
+          if (order.status === 'completed') completedCount += 1;
+        });
+
+        bannerNetRevenueEl.textContent = `${formatPrice(net)} AED`;
+        bannerGrossSalesEl.textContent = `${formatPrice(gross)} AED`;
+        bannerDiscountEl.textContent = `${formatPrice(totalDiscount)} AED`;
+        bannerPendingCountEl.textContent = String(pendingCount);
+        bannerCompletedCountEl.textContent = String(completedCount);
+      }
 
       data.forEach(order => {
         const orderDiv = document.createElement('div');
@@ -998,8 +1060,58 @@ if (isAdminPage) {
           itemsUl.appendChild(li);
         });
 
+        const footerRow = document.createElement('div');
+        footerRow.className = 'order-footer-row';
+
+        const statusPill = document.createElement('span');
+        statusPill.className = 'status-pill';
+        const s = order.status || 'pending';
+        statusPill.textContent = s.toUpperCase();
+        if (s === 'pending') statusPill.classList.add('pending');
+        if (s === 'completed') statusPill.classList.add('completed');
+        if (s === 'cancelled') statusPill.classList.add('cancelled');
+
+        const statusSelect = document.createElement('select');
+        statusSelect.className = 'order-status-select';
+        ['pending', 'completed', 'cancelled'].forEach(optionValue => {
+          const opt = document.createElement('option');
+          opt.value = optionValue;
+          opt.textContent = optionValue.charAt(0).toUpperCase() + optionValue.slice(1);
+          if (optionValue === s) opt.selected = true;
+          statusSelect.appendChild(opt);
+        });
+
+        statusSelect.addEventListener('change', async () => {
+          const newStatus = statusSelect.value;
+          const { error } = await client
+            .from('orders')
+            .update({ status: newStatus })
+            .eq('id', order.id);
+
+          if (error) {
+            alert('Error updating status, see console.');
+            console.error('Update order status error:', error);
+            statusSelect.value = s; // revert on error
+            return;
+          }
+
+          // update pill text/class
+          statusPill.textContent = newStatus.toUpperCase();
+          statusPill.className = 'status-pill';
+          if (newStatus === 'pending') statusPill.classList.add('pending');
+          if (newStatus === 'completed') statusPill.classList.add('completed');
+          if (newStatus === 'cancelled') statusPill.classList.add('cancelled');
+
+          // reload banners to reflect counts
+          await loadOrders();
+        });
+
+        footerRow.appendChild(statusPill);
+        footerRow.appendChild(statusSelect);
+
         orderDiv.appendChild(header);
         orderDiv.appendChild(itemsUl);
+        orderDiv.appendChild(footerRow);
         ordersListEl.appendChild(orderDiv);
       });
     }
@@ -1009,6 +1121,7 @@ if (isAdminPage) {
       const priceAed = parseFloat(priceInput.value);
       const category = categoryInput.value.trim();
       const description = descriptionInput.value.trim();
+      const initialStockVal = parseInt(stockInitialInput.value || '0', 10);
 
       if (!name || isNaN(priceAed)) {
         alert('Enter name and price.');
@@ -1024,6 +1137,7 @@ if (isAdminPage) {
       }
 
       const priceFils = Math.round(priceAed * 100);
+      const initialStock = isNaN(initialStockVal) || initialStockVal < 0 ? 0 : initialStockVal;
 
       const { error } = await client
         .from('products')
@@ -1034,7 +1148,9 @@ if (isAdminPage) {
           category: category || null,
           description: description || null,
           image_url: imageUrl || null,
-          toppings: currentToppings.length > 0 ? currentToppings : null
+          toppings: currentToppings.length > 0 ? currentToppings : null,
+          initial_stock: initialStock,
+          current_stock: initialStock
         });
 
       if (error) {
@@ -1047,6 +1163,7 @@ if (isAdminPage) {
       priceInput.value = '';
       categoryInput.value = '';
       descriptionInput.value = '';
+      stockInitialInput.value = '';
       imageFileInput.value = '';
       resetImageCropper();
       currentToppings = [];
@@ -1057,6 +1174,7 @@ if (isAdminPage) {
 
     addProductBtn.addEventListener('click', addProduct);
     refreshOrdersBtn.addEventListener('click', loadOrders);
+    ordersStatusFilterEl.addEventListener('change', loadOrders);
 
     loadProductsAdmin();
     loadOrders();
