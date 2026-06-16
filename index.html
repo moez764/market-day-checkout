@@ -254,7 +254,7 @@
       background: var(--accent-dark);
     }
 
-    /* NEW: toppings checkboxes in product card */
+    /* Toppings */
     .product-toppings {
       display: flex;
       flex-wrap: wrap;
@@ -431,7 +431,7 @@
       text-align: center;
     }
 
-    /* NEW: payment + change panel */
+    /* Payment + discount + change */
     .payment-panel {
       margin-top: 8px;
       background: rgba(0, 0, 0, 0.3);
@@ -476,6 +476,12 @@
       font-size: 13px;
       font-weight: 600;
       color: #f6e0c9;
+      text-align: right;
+    }
+
+    .discount-info {
+      font-size: 11px;
+      color: #e3c9b9;
       text-align: right;
     }
 
@@ -538,7 +544,6 @@
       box-shadow: 0 10px 26px rgba(255, 99, 71, 0.55);
     }
 
-    /* Responsive: single column on small screens */
     @media (max-width: 900px) {
       body {
         padding: 10px;
@@ -579,9 +584,7 @@
       <div>
         <div class="menu-title">Tap to add your favourites</div>
         <div class="menu-subtitle">Choose from our sweet, chilled and chocolatey menu.</div>
-        <div id="category-pills" class="category-pills">
-          <!-- JS fills category buttons -->
-        </div>
+        <div id="category-pills" class="category-pills"></div>
       </div>
 
       <div id="product-list" class="product-grid"></div>
@@ -599,16 +602,16 @@
 
       <div class="cart-footer">
         <div class="cart-total-row">
-          <div class="cart-total-label">Total</div>
-          <div class="cart-total-value"><span id="total">0.00</span> AED</div>
+          <div class="cart-total-label">Subtotal</div>
+          <div class="cart-total-value"><span id="subtotal">0.00</span> AED</div>
         </div>
 
-        <!-- NEW: customer + payment + change -->
         <div class="payment-panel">
           <div class="payment-row">
             <label for="customer-name">Customer name</label>
             <input id="customer-name" class="payment-input" type="text" placeholder="Optional" />
           </div>
+
           <div class="payment-row">
             <label for="payment-method">Payment</label>
             <select id="payment-method" class="payment-method-select">
@@ -616,11 +619,21 @@
               <option value="card">Card</option>
             </select>
 
+            <label for="discount-amount">Discount (AED)</label>
+            <input id="discount-amount" class="payment-input" type="number" step="0.01" min="0" placeholder="0.00" />
+          </div>
+
+          <div class="payment-row">
             <label for="cash-received">Cash in (AED)</label>
             <input id="cash-received" class="payment-input" type="number" step="0.01" min="0" placeholder="0.00" />
+
+            <div class="change-display">
+              Change: <span id="change-amount">0.00</span> AED
+            </div>
           </div>
-          <div class="change-display">
-            Change: <span id="change-amount">0.00</span> AED
+
+          <div class="discount-info">
+            Total after discount: <span id="total-after-discount">0.00</span> AED
           </div>
         </div>
 
