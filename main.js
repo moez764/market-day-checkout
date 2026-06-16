@@ -18,7 +18,8 @@ function formatPrice(fils) {
 if (isCustomerPage) {
   const productListEl = document.getElementById('product-list');
   const cartEl = document.getElementById('cart');
-  const totalEl = document.getElementById('total');
+  const subtotalEl = document.getElementById('subtotal');
+  const totalAfterDiscountEl = document.getElementById('total-after-discount');
   const placeOrderBtn = document.getElementById('place-order-btn');
   const categoryPillsEl = document.getElementById('category-pills');
 
@@ -30,10 +31,11 @@ if (isCustomerPage) {
   const paymentMethodSelect = document.getElementById('payment-method');
   const cashReceivedInput = document.getElementById('cash-received');
   const changeAmountEl = document.getElementById('change-amount');
+  const discountAmountInput = document.getElementById('discount-amount');
 
   let products = [];
-  // Cart now supports multiple toppings:
-  // [{ lineId, productId, toppingIndexes: number[], quantity }]
+  // Cart line supports multiple toppings:
+  // { lineId, productId, toppingIndexes: number[], quantity }
   let cart = [];
   let categories = [];
   let selectedCategories = new Set();
@@ -206,7 +208,6 @@ if (isCustomerPage) {
           ? p.description
           : 'Sweet, chilled and perfect for market day.';
 
-      // Toppings selector (multiple)
       let toppingCheckboxes = [];
       if (Array.isArray(p.toppings) && p.toppings.length > 0) {
         const toppingsEl = document.createElement('div');
@@ -250,7 +251,6 @@ if (isCustomerPage) {
           .map(cb => parseInt(cb.value, 10));
 
         addToCart(p.id, selectedIndexes);
-        // Optional: clear selections after adding
         toppingCheckboxes.forEach(cb => (cb.checked = false));
       };
 
@@ -266,11 +266,9 @@ if (isCustomerPage) {
     });
   }
 
-  // Now toppings is an array of indexes
   function addToCart(productId, toppingIndexes = []) {
-    const key = JSON.stringify(
-      (toppingIndexes || []).slice().sort((a, b) => a - b)
-    );
+    const sorted = (toppingIndexes || []).slice().sort((a, b) => a - b);
+    const key = JSON.stringify(sorted);
     const existing = cart.find(
       item =>
         item.productId === productId &&
@@ -283,7 +281,7 @@ if (isCustomerPage) {
       cart.push({
         lineId: Date.now() + Math.random(),
         productId,
-        toppingIndexes: (toppingIndexes || []).slice(),
+        toppingIndexes: sorted,
         quantity: 1
       });
     }
@@ -312,6 +310,29 @@ if (isCustomerPage) {
     };
   }
 
+  function recalcTotals() {
+    let subtotalFils = 0;
+    cart.forEach(item => {
+      const product = products.find(p => p.id === item.productId);
+      if (!product) return;
+      const { unitPrice } = computeLinePrices(product, item.toppingIndexes);
+      subtotalFils += unitPrice * item.quantity;
+    });
+
+    subtotalEl.textContent = formatPrice(subtotalFils);
+
+    let discountAed = parseFloat(discountAmountInput.value || '0');
+    if (isNaN(discountAed) || discountAed < 0) discountAed = 0;
+    let discountFils = Math.round(discountAed * 100);
+
+    if (discountFils > subtotalFils) discountFils = subtotalFils;
+
+    const finalTotalFils = subtotalFils - discountFils;
+    totalAfterDiscountEl.textContent = formatPrice(finalTotalFils);
+
+    updateChangeDisplay(subtotalFils, finalTotalFils);
+  }
+
   function renderCart() {
     cartEl.innerHTML = '';
 
@@ -320,12 +341,11 @@ if (isCustomerPage) {
       empty.className = 'cart-empty';
       empty.textContent = 'No items yet. Tap an item to add it.';
       cartEl.appendChild(empty);
-      totalEl.textContent = '0.00';
+      subtotalEl.textContent = '0.00';
+      totalAfterDiscountEl.textContent = '0.00';
       changeAmountEl.textContent = '0.00';
       return;
     }
-
-    let total = 0;
 
     cart.forEach(item => {
       const product = products.find(p => p.id === item.productId);
@@ -336,7 +356,6 @@ if (isCustomerPage) {
         item.toppingIndexes
       );
       const lineTotal = unitPrice * item.quantity;
-      total += lineTotal;
 
       const row = document.createElement('div');
       row.className = 'cart-item';
@@ -381,6 +400,7 @@ if (isCustomerPage) {
           cart = cart.filter(x => x.lineId !== item.lineId);
         }
         renderCart();
+        recalcTotals();
       };
 
       const clearLineBtn = document.createElement('button');
@@ -390,6 +410,7 @@ if (isCustomerPage) {
       clearLineBtn.onclick = () => {
         cart = cart.filter(x => x.lineId !== item.lineId);
         renderCart();
+        recalcTotals();
       };
 
       right.appendChild(priceEl);
@@ -401,15 +422,20 @@ if (isCustomerPage) {
       cartEl.appendChild(row);
     });
 
-    totalEl.textContent = formatPrice(total);
-    updateChangeDisplay();
+    recalcTotals();
   }
 
-  function updateChangeDisplay() {
-    const totalFils = Math.round(parseFloat(totalEl.textContent || '0') * 100);
+  function updateChangeDisplay(subtotalFilsOverride = null, finalTotalFilsOverride = null) {
+    const subtotalFils = subtotalFilsOverride != null
+      ? subtotalFilsOverride
+      : Math.round(parseFloat(subtotalEl.textContent || '0') * 100);
+
+    const finalTotalFils = finalTotalFilsOverride != null
+      ? finalTotalFilsOverride
+      : subtotalFils;
+
     const paymentMethod = paymentMethodSelect.value;
     if (paymentMethod === 'card') {
-      // No cash change for card
       changeAmountEl.textContent = '0.00';
       return;
     }
@@ -417,17 +443,20 @@ if (isCustomerPage) {
     const cash = parseFloat(cashReceivedInput.value || '0');
     const cashFils = Math.round(cash * 100);
 
-    let changeFils = cashFils - totalFils;
+    let changeFils = cashFils - finalTotalFils;
     if (changeFils < 0) changeFils = 0;
 
     changeAmountEl.textContent = formatPrice(changeFils);
   }
 
   if (cashReceivedInput) {
-    cashReceivedInput.addEventListener('input', updateChangeDisplay);
+    cashReceivedInput.addEventListener('input', () => recalcTotals());
   }
   if (paymentMethodSelect) {
-    paymentMethodSelect.addEventListener('change', updateChangeDisplay);
+    paymentMethodSelect.addEventListener('change', () => recalcTotals());
+  }
+  if (discountAmountInput) {
+    discountAmountInput.addEventListener('input', () => recalcTotals());
   }
 
   async function placeOrder() {
@@ -436,22 +465,31 @@ if (isCustomerPage) {
       return;
     }
 
-    let total = 0;
+    // Subtotal and discount in fils
+    let subtotalFils = 0;
     cart.forEach(item => {
       const product = products.find(p => p.id === item.productId);
       if (!product) return;
       const { unitPrice } = computeLinePrices(product, item.toppingIndexes);
-      total += unitPrice * item.quantity;
+      subtotalFils += unitPrice * item.quantity;
     });
+
+    let discountAed = parseFloat(discountAmountInput.value || '0');
+    if (isNaN(discountAed) || discountAed < 0) discountAed = 0;
+    let discountFils = Math.round(discountAed * 100);
+    if (discountFils > subtotalFils) discountFils = subtotalFils;
+
+    const totalFils = subtotalFils - discountFils;
 
     const customerName = customerNameInput.value.trim() || null;
     const paymentMethod = paymentMethodSelect.value || 'cash';
 
-    // Insert order with extra fields
     const { data: order, error: orderError } = await client
       .from('orders')
       .insert({
-        total_price: total,
+        total_price: totalFils,
+        subtotal_price: subtotalFils,
+        discount_amount: discountFils,
         customer_name: customerName,
         payment_method: paymentMethod
       })
@@ -468,14 +506,13 @@ if (isCustomerPage) {
 
     const itemsPayload = cart.map(item => {
       const product = products.find(p => p.id === item.productId);
-
-      let toppingName = null;
-      let toppingPrice = null;
-
       const { toppingNames, toppingTotal } = computeLinePrices(
         product,
         item.toppingIndexes
       );
+
+      let toppingName = null;
+      let toppingPrice = null;
 
       if (toppingNames.length > 0) {
         toppingName = toppingNames.join(', ');
@@ -504,9 +541,11 @@ if (isCustomerPage) {
     showOrderModal(orderId);
     cart = [];
     renderCart();
-    // Reset payment panel
     customerNameInput.value = '';
     cashReceivedInput.value = '';
+    discountAmountInput.value = '';
+    subtotalEl.textContent = '0.00';
+    totalAfterDiscountEl.textContent = '0.00';
     changeAmountEl.textContent = '0.00';
   }
 
@@ -557,8 +596,9 @@ if (isAdminPage) {
     const refreshOrdersBtn = document.getElementById('refresh-orders-btn');
     const ordersCountEl = document.getElementById('orders-count');
     const ordersGrossEl = document.getElementById('orders-gross');
+    const ordersDiscountEl = document.getElementById('orders-discount');
+    const ordersNetEl = document.getElementById('orders-net');
 
-    // ----- Toppings UI -----
     function renderToppingsChips() {
       toppingsListEl.innerHTML = '';
       currentToppings.forEach((t, idx) => {
@@ -596,7 +636,6 @@ if (isAdminPage) {
       renderToppingsChips();
     });
 
-    // ----- Image cropper state (FREE-FORM RECTANGLE) -----
     const ctx = imageCanvas.getContext('2d');
     let originalImage = null;
     let imageLoaded = false;
@@ -712,7 +751,6 @@ if (isAdminPage) {
       const croppedCanvas = document.createElement('canvas');
       const croppedCtx = croppedCanvas.getContext('2d');
 
-      // Scale so longest side <= 512
       const maxSize = 512;
       const scale = Math.min(maxSize / w, maxSize / h, 1);
       const outW = Math.round(w * scale);
@@ -870,6 +908,8 @@ if (isAdminPage) {
           id,
           created_at,
           total_price,
+          subtotal_price,
+          discount_amount,
           customer_name,
           payment_method,
           order_items (
@@ -893,15 +933,23 @@ if (isAdminPage) {
         ordersListEl.textContent = 'No orders yet.';
         ordersCountEl.textContent = '0';
         ordersGrossEl.textContent = '0.00 AED';
+        ordersDiscountEl.textContent = '0.00 AED';
+        ordersNetEl.textContent = '0.00 AED';
         return;
       }
 
       let gross = 0;
+      let totalDiscount = 0;
       data.forEach(order => {
-        gross += order.total_price || 0;
+        gross += order.subtotal_price || order.total_price || 0;
+        totalDiscount += order.discount_amount || 0;
       });
+      const net = gross - totalDiscount;
+
       ordersCountEl.textContent = String(data.length);
       ordersGrossEl.textContent = `${formatPrice(gross)} AED`;
+      ordersDiscountEl.textContent = `${formatPrice(totalDiscount)} AED`;
+      ordersNetEl.textContent = `${formatPrice(net)} AED`;
 
       data.forEach(order => {
         const orderDiv = document.createElement('div');
@@ -924,7 +972,11 @@ if (isAdminPage) {
         const payStr = order.payment_method
           ? ` · ${order.payment_method.toUpperCase()}`
           : '';
-        metaEl.textContent = `${timeStr}${nameStr}${payStr}`;
+        const discStr =
+          order.discount_amount && order.discount_amount > 0
+            ? ` · -${formatPrice(order.discount_amount)} AED`
+            : '';
+        metaEl.textContent = `${timeStr}${nameStr}${payStr}${discStr}`;
 
         const totalEl = document.createElement('div');
         totalEl.className = 'order-total';
