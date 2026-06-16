@@ -14,7 +14,7 @@ function formatPrice(fils) {
   return (fils / 100).toFixed(2);
 }
 
-// ---------- CUSTOMER PAGE ----------
+// ---------- CUSTOMER / POS PAGE ----------
 if (isCustomerPage) {
   const productListEl = document.getElementById('product-list');
   const cartEl = document.getElementById('cart');
@@ -26,8 +26,15 @@ if (isCustomerPage) {
   const orderModalNumber = document.getElementById('order-modal-number');
   const orderModalClose = document.getElementById('order-modal-close');
 
+  const customerNameInput = document.getElementById('customer-name');
+  const paymentMethodSelect = document.getElementById('payment-method');
+  const cashReceivedInput = document.getElementById('cash-received');
+  const changeAmountEl = document.getElementById('change-amount');
+
   let products = [];
-  let cart = []; // [{ lineId, productId, toppingIndex, quantity }]
+  // Cart now supports multiple toppings:
+  // [{ lineId, productId, toppingIndexes: number[], quantity }]
+  let cart = [];
   let categories = [];
   let selectedCategories = new Set();
 
@@ -53,15 +60,13 @@ if (isCustomerPage) {
       .select('*')
       .order('id', { ascending: true });
 
-    console.log('Products from Supabase:', data, 'Error:', error);
-
     if (error) {
       productListEl.textContent = 'Error loading products.';
       console.error('Error loading products:', error);
       return;
     }
 
-    products = data || [];
+    products = (data || []).filter(p => p.is_available !== false);
 
     const catSet = new Set();
     products.forEach(p => {
@@ -201,6 +206,32 @@ if (isCustomerPage) {
           ? p.description
           : 'Sweet, chilled and perfect for market day.';
 
+      // Toppings selector (multiple)
+      let toppingCheckboxes = [];
+      if (Array.isArray(p.toppings) && p.toppings.length > 0) {
+        const toppingsEl = document.createElement('div');
+        toppingsEl.className = 'product-toppings';
+
+        p.toppings.forEach((t, idx) => {
+          const label = document.createElement('label');
+          label.className = 'topping-toggle';
+
+          const cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.value = idx;
+          toppingCheckboxes.push(cb);
+
+          const span = document.createElement('span');
+          span.textContent = `${t.name} +${formatPrice(t.price || 0)} AED`;
+
+          label.appendChild(cb);
+          label.appendChild(span);
+          toppingsEl.appendChild(label);
+        });
+
+        card.appendChild(toppingsEl);
+      }
+
       const bottom = document.createElement('div');
       bottom.className = 'product-bottom';
 
@@ -212,7 +243,16 @@ if (isCustomerPage) {
       btn.className = 'btn-add';
       btn.type = 'button';
       btn.textContent = 'Add';
-      btn.onclick = () => addToCart(p.id, null);
+
+      btn.onclick = () => {
+        const selectedIndexes = toppingCheckboxes
+          .filter(cb => cb.checked)
+          .map(cb => parseInt(cb.value, 10));
+
+        addToCart(p.id, selectedIndexes);
+        // Optional: clear selections after adding
+        toppingCheckboxes.forEach(cb => (cb.checked = false));
+      };
 
       bottom.appendChild(priceEl);
       bottom.appendChild(btn);
@@ -221,45 +261,55 @@ if (isCustomerPage) {
       card.appendChild(imgWrap);
       card.appendChild(nameEl);
       card.appendChild(descEl);
-
-      // Toppings under each product
-      if (Array.isArray(p.toppings) && p.toppings.length > 0) {
-        const toppingsEl = document.createElement('div');
-        toppingsEl.className = 'product-toppings';
-
-        p.toppings.forEach((t, idx) => {
-          const tBtn = document.createElement('button');
-          tBtn.type = 'button';
-          tBtn.className = 'pill'; // reuse pill style
-          tBtn.style.fontSize = '11px';
-          tBtn.textContent = `${t.name} +${formatPrice(t.price || 0)} AED`;
-          tBtn.onclick = () => addToCart(p.id, idx);
-          toppingsEl.appendChild(tBtn);
-        });
-
-        card.appendChild(toppingsEl);
-      }
-
       card.appendChild(bottom);
       productListEl.appendChild(card);
     });
   }
 
-  function addToCart(productId, toppingIndex = null) {
-    const existing = cart.find(
-      item => item.productId === productId && item.toppingIndex === toppingIndex
+  // Now toppings is an array of indexes
+  function addToCart(productId, toppingIndexes = []) {
+    const key = JSON.stringify(
+      (toppingIndexes || []).slice().sort((a, b) => a - b)
     );
+    const existing = cart.find(
+      item =>
+        item.productId === productId &&
+        JSON.stringify(item.toppingIndexes) === key
+    );
+
     if (existing) {
       existing.quantity += 1;
     } else {
       cart.push({
         lineId: Date.now() + Math.random(),
         productId,
-        toppingIndex,
+        toppingIndexes: (toppingIndexes || []).slice(),
         quantity: 1
       });
     }
     renderCart();
+  }
+
+  function computeLinePrices(product, toppingIndexes) {
+    const basePrice = product.price || 0;
+    let toppingTotal = 0;
+    let toppingNames = [];
+
+    if (Array.isArray(product.toppings) && Array.isArray(toppingIndexes)) {
+      toppingIndexes.forEach(idx => {
+        const t = product.toppings[idx];
+        if (!t) return;
+        const price = t.price || 0;
+        toppingTotal += price;
+        toppingNames.push(t.name);
+      });
+    }
+
+    return {
+      unitPrice: basePrice + toppingTotal,
+      toppingTotal,
+      toppingNames
+    };
   }
 
   function renderCart() {
@@ -271,6 +321,7 @@ if (isCustomerPage) {
       empty.textContent = 'No items yet. Tap an item to add it.';
       cartEl.appendChild(empty);
       totalEl.textContent = '0.00';
+      changeAmountEl.textContent = '0.00';
       return;
     }
 
@@ -280,20 +331,10 @@ if (isCustomerPage) {
       const product = products.find(p => p.id === item.productId);
       if (!product) return;
 
-      const basePrice = product.price || 0;
-      let topping = null;
-      let toppingPrice = 0;
-
-      if (
-        item.toppingIndex != null &&
-        Array.isArray(product.toppings) &&
-        product.toppings[item.toppingIndex]
-      ) {
-        topping = product.toppings[item.toppingIndex];
-        toppingPrice = topping.price || 0;
-      }
-
-      const unitPrice = basePrice + toppingPrice;
+      const { unitPrice, toppingNames } = computeLinePrices(
+        product,
+        item.toppingIndexes
+      );
       const lineTotal = unitPrice * item.quantity;
       total += lineTotal;
 
@@ -314,10 +355,10 @@ if (isCustomerPage) {
       left.appendChild(nameEl);
       left.appendChild(metaEl);
 
-      if (topping) {
+      if (toppingNames.length > 0) {
         const toppingEl = document.createElement('div');
         toppingEl.className = 'cart-item-meta';
-        toppingEl.textContent = `with ${topping.name}`;
+        toppingEl.textContent = `with ${toppingNames.join(', ')}`;
         left.appendChild(toppingEl);
       }
 
@@ -342,18 +383,18 @@ if (isCustomerPage) {
         renderCart();
       };
 
-      const removeToppingBtn = document.createElement('button');
-      removeToppingBtn.type = 'button';
-      removeToppingBtn.className = 'cart-remove-btn';
-      removeToppingBtn.textContent = 'x';
-      removeToppingBtn.onclick = () => {
-        item.toppingIndex = null;
+      const clearLineBtn = document.createElement('button');
+      clearLineBtn.type = 'button';
+      clearLineBtn.className = 'cart-remove-btn';
+      clearLineBtn.textContent = 'x';
+      clearLineBtn.onclick = () => {
+        cart = cart.filter(x => x.lineId !== item.lineId);
         renderCart();
       };
 
       right.appendChild(priceEl);
       right.appendChild(removeProductBtn);
-      if (topping) right.appendChild(removeToppingBtn);
+      right.appendChild(clearLineBtn);
 
       row.appendChild(left);
       row.appendChild(right);
@@ -361,6 +402,32 @@ if (isCustomerPage) {
     });
 
     totalEl.textContent = formatPrice(total);
+    updateChangeDisplay();
+  }
+
+  function updateChangeDisplay() {
+    const totalFils = Math.round(parseFloat(totalEl.textContent || '0') * 100);
+    const paymentMethod = paymentMethodSelect.value;
+    if (paymentMethod === 'card') {
+      // No cash change for card
+      changeAmountEl.textContent = '0.00';
+      return;
+    }
+
+    const cash = parseFloat(cashReceivedInput.value || '0');
+    const cashFils = Math.round(cash * 100);
+
+    let changeFils = cashFils - totalFils;
+    if (changeFils < 0) changeFils = 0;
+
+    changeAmountEl.textContent = formatPrice(changeFils);
+  }
+
+  if (cashReceivedInput) {
+    cashReceivedInput.addEventListener('input', updateChangeDisplay);
+  }
+  if (paymentMethodSelect) {
+    paymentMethodSelect.addEventListener('change', updateChangeDisplay);
   }
 
   async function placeOrder() {
@@ -373,23 +440,21 @@ if (isCustomerPage) {
     cart.forEach(item => {
       const product = products.find(p => p.id === item.productId);
       if (!product) return;
-      const basePrice = product.price || 0;
-      let toppingPrice = 0;
-
-      if (
-        item.toppingIndex != null &&
-        Array.isArray(product.toppings) &&
-        product.toppings[item.toppingIndex]
-      ) {
-        toppingPrice = product.toppings[item.toppingIndex].price || 0;
-      }
-
-      total += (basePrice + toppingPrice) * item.quantity;
+      const { unitPrice } = computeLinePrices(product, item.toppingIndexes);
+      total += unitPrice * item.quantity;
     });
 
+    const customerName = customerNameInput.value.trim() || null;
+    const paymentMethod = paymentMethodSelect.value || 'cash';
+
+    // Insert order with extra fields
     const { data: order, error: orderError } = await client
       .from('orders')
-      .insert({ total_price: total })
+      .insert({
+        total_price: total,
+        customer_name: customerName,
+        payment_method: paymentMethod
+      })
       .select()
       .single();
 
@@ -403,16 +468,18 @@ if (isCustomerPage) {
 
     const itemsPayload = cart.map(item => {
       const product = products.find(p => p.id === item.productId);
+
       let toppingName = null;
       let toppingPrice = null;
 
-      if (
-        item.toppingIndex != null &&
-        Array.isArray(product.toppings) &&
-        product.toppings[item.toppingIndex]
-      ) {
-        toppingName = product.toppings[item.toppingIndex].name || null;
-        toppingPrice = product.toppings[item.toppingIndex].price || 0;
+      const { toppingNames, toppingTotal } = computeLinePrices(
+        product,
+        item.toppingIndexes
+      );
+
+      if (toppingNames.length > 0) {
+        toppingName = toppingNames.join(', ');
+        toppingPrice = toppingTotal;
       }
 
       return {
@@ -437,6 +504,10 @@ if (isCustomerPage) {
     showOrderModal(orderId);
     cart = [];
     renderCart();
+    // Reset payment panel
+    customerNameInput.value = '';
+    cashReceivedInput.value = '';
+    changeAmountEl.textContent = '0.00';
   }
 
   if (placeOrderBtn) placeOrderBtn.addEventListener('click', placeOrder);
@@ -484,6 +555,8 @@ if (isAdminPage) {
     const adminProductListEl = document.getElementById('admin-product-list');
     const ordersListEl = document.getElementById('orders-list');
     const refreshOrdersBtn = document.getElementById('refresh-orders-btn');
+    const ordersCountEl = document.getElementById('orders-count');
+    const ordersGrossEl = document.getElementById('orders-gross');
 
     // ----- Toppings UI -----
     function renderToppingsChips() {
@@ -797,6 +870,8 @@ if (isAdminPage) {
           id,
           created_at,
           total_price,
+          customer_name,
+          payment_method,
           order_items (
             quantity,
             topping_name,
@@ -816,8 +891,17 @@ if (isAdminPage) {
 
       if (!data || data.length === 0) {
         ordersListEl.textContent = 'No orders yet.';
+        ordersCountEl.textContent = '0';
+        ordersGrossEl.textContent = '0.00 AED';
         return;
       }
+
+      let gross = 0;
+      data.forEach(order => {
+        gross += order.total_price || 0;
+      });
+      ordersCountEl.textContent = String(data.length);
+      ordersGrossEl.textContent = `${formatPrice(gross)} AED`;
 
       data.forEach(order => {
         const orderDiv = document.createElement('div');
@@ -832,7 +916,15 @@ if (isAdminPage) {
 
         const metaEl = document.createElement('div');
         metaEl.className = 'order-meta';
-        metaEl.textContent = new Date(order.created_at).toLocaleTimeString();
+
+        const timeStr = new Date(order.created_at).toLocaleTimeString();
+        const nameStr = order.customer_name
+          ? ` · ${order.customer_name}`
+          : '';
+        const payStr = order.payment_method
+          ? ` · ${order.payment_method.toUpperCase()}`
+          : '';
+        metaEl.textContent = `${timeStr}${nameStr}${payStr}`;
 
         const totalEl = document.createElement('div');
         totalEl.className = 'order-total';
